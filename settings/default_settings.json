@@ -1,0 +1,24 @@
+{
+    "management_settings": {
+        "entrance_mode" : "authorized",
+        "payment_mode" : "fee_per_hour",
+        "fee_per_hour" : 10.0
+    },
+    "connection_settings": {
+        "video": {
+            "ip": "0.0.0.0",
+            "port": 9999
+        },
+        "data1": {
+            "ip": "0.0.0.0",
+            "port": 9998
+        },
+        "data2": {
+            "ip": "0.0.0.0",
+            "port": 9997
+        }
+    },
+    "recognition_settings": {
+        "recognition_confidence": 0.85
+    }
+}

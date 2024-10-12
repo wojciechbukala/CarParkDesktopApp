@@ -141,7 +141,7 @@ color: rgb(255, 255, 255);</string>
         </widget>
        </item>
        <item>
-        <widget class="QToolButton" name="auth_lis">
+        <widget class="QToolButton" name="auth_list_button">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -317,7 +317,7 @@ color: rgb(255, 255, 255);</string>
        <string notr="true">font: 9pt &quot;Sans Serif Collection&quot;;</string>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="home_page">
        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,1">
@@ -769,14 +769,14 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QCheckBox" name="anyone">
+                  <widget class="QRadioButton" name="anyone">
                    <property name="text">
                     <string>Anyone</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QCheckBox" name="authorized">
+                  <widget class="QRadioButton" name="authorized">
                    <property name="text">
                     <string>Authorized</string>
                    </property>
@@ -799,21 +799,21 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QCheckBox" name="free">
+                  <widget class="QRadioButton" name="free">
                    <property name="text">
                     <string>Free</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QCheckBox" name="entrance_fee">
+                  <widget class="QRadioButton" name="entrance_fee">
                    <property name="text">
                     <string>Entrance fee</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QCheckBox" name="free_per_hour">
+                  <widget class="QRadioButton" name="per_hour">
                    <property name="text">
                     <string>Fee per hour</string>
                    </property>
@@ -924,7 +924,7 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="lineEdit_2">
+                  <widget class="QLineEdit" name="video_ip">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -953,7 +953,7 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="lineEdit_3">
+                  <widget class="QLineEdit" name="video_port">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1075,7 +1075,7 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="lineEdit_6">
+                  <widget class="QLineEdit" name="data2_ip">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1104,7 +1104,7 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="lineEdit_7">
+                  <widget class="QLineEdit" name="data2_port">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1227,7 +1227,7 @@ color: rgb(255, 255, 255);</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QSpinBox" name="spinBox">
+                  <widget class="QSpinBox" name="conf_box">
                    <property name="maximumSize">
                     <size>
                      <width>100</width>
@@ -1280,7 +1280,7 @@ color: #fff;</string>
       <widget class="QWidget" name="auth_list_page">
        <layout class="QVBoxLayout" name="verticalLayout_16">
         <item>
-         <widget class="QLabel" name="label_21">
+         <widget class="QLabel" name="auth_page_title">
           <property name="text">
            <string>Authorized cars list</string>
           </property>
@@ -1388,6 +1388,23 @@ color: #fff;</string>
                   <height>0</height>
                  </size>
                 </property>
+                <property name="maximumDate">
+                 <date>
+                  <year>2100</year>
+                  <month>12</month>
+                  <day>31</day>
+                 </date>
+                </property>
+                <property name="minimumDate">
+                 <date>
+                  <year>2024</year>
+                  <month>1</month>
+                  <day>1</day>
+                 </date>
+                </property>
+                <property name="calendarPopup">
+                 <bool>true</bool>
+                </property>
                </widget>
               </item>
               <item>
@@ -1398,10 +1415,27 @@ color: #fff;</string>
                   <height>0</height>
                  </size>
                 </property>
+                <property name="maximumDate">
+                 <date>
+                  <year>2200</year>
+                  <month>12</month>
+                  <day>31</day>
+                 </date>
+                </property>
+                <property name="minimumDate">
+                 <date>
+                  <year>2024</year>
+                  <month>1</month>
+                  <day>1</day>
+                 </date>
+                </property>
+                <property name="calendarPopup">
+                 <bool>true</bool>
+                </property>
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="pushButton">
+               <widget class="QPushButton" name="authSubmit">
                 <property name="text">
                  <string>ADD</string>
                 </property>
@@ -1414,7 +1448,7 @@ color: #fff;</string>
          </widget>
         </item>
         <item>
-         <widget class="QTableWidget" name="tableWidget">
+         <widget class="QTableWidget" name="auth_table">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>

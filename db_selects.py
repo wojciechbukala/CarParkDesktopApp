@@ -19,6 +19,14 @@ class Selects():
 
         return cars_list
 
+    def get_auth_cars(self):
+        cars_list = []
+        result = self.session.query(AuthorizedCars)
+        for row in result:
+            cars_list.append([row.license_plate, row.authorization_start_date, row.authorization_end_date])
+
+        return cars_list
+
 if __name__ == "__main__":
     selects = Selects()
     print(selects.get_current_cars())

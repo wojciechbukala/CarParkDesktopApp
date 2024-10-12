@@ -12,8 +12,7 @@ class AuthorizedCars(Base):
     authorization_start_date = Column("authorization_start_date", DateTime)
     authorization_end_date = Column("authorization_end_date",DateTime)
 
-    def __init__(self, acID, license_plate, authorization_start_date, authorization_end_date):
-        self.acID = acID
+    def __init__(self, license_plate, authorization_start_date, authorization_end_date):
         self.license_plate = license_plate
         self.authorization_start_date = authorization_start_date
         self.authorization_end_date = authorization_end_date
@@ -30,8 +29,7 @@ class Cars(Base):
     exit_time = Column("exit_time", DateTime)
     currently_parked = Column("currently_parked", Boolean)
 
-    def __init__(self, carID, license_plate, entry_time, exit_time, currently_parked):
-        self.carID = carID
+    def __init__(self, license_plate, entry_time, exit_time, currently_parked):
         self.license_plate = license_plate
         self.entry_time = entry_time
         self.exit_time = exit_time
@@ -48,8 +46,7 @@ class Payments(Base):
     amount = Column("amout", Float)
     payment_date = Column("payment_date", DateTime)
 
-    def __init__(self, paymentID, carID, amount, payment_date):
-        self.paymentID = paymentID
+    def __init__(self, carID, amount, payment_date):
         self.carID = carID
         self.amount = amount
         self.payment_date = payment_date
