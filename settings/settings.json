@@ -7,18 +7,18 @@
     "connection_settings": {
         "video": {
             "ip": "0.0.0.0",
-            "port": "9999"
+            "port": 9999
         },
         "data1": {
             "ip": "0.0.0.0",
-            "port": "9998"
+            "port": 9998
         },
         "data2": {
             "ip": "0.0.0.0",
-            "port": "9997"
+            "port": 9997
         }
     },
     "recognition_settings": {
-        "recognition_confidence": 40
+        "recognition_confidence": 50
     }
 }

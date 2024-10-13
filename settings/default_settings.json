@@ -19,6 +19,6 @@
         }
     },
     "recognition_settings": {
-        "recognition_confidence": 0.85
+        "recognition_confidence": 50
     }
 }

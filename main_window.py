@@ -2,9 +2,9 @@ import cv2
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
 from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtWidgets import QPushButton
 from main_window_ui import Ui_MainWindow
-from receive import Receive
-from app_settings import settings
+from receive_video import Receive_Video
 from db_selects import Selects
 from db_inserts import Inserts
 from datetime import datetime
@@ -20,8 +20,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.auth_list_button.clicked.connect(self.display_auth_list_page)
         self.settings_button.clicked.connect(self.display_settings_page)
         self.streaming_active = False
+        self.receiving_license_plate = False
+        
+        self.auth_submit_connected = False
+
+        self.selects = Selects()
+        self.inserts = Inserts()
 
         self.settings = self.read_settings()
+
 
         self.display_home_page()
 
@@ -32,33 +39,61 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     # reciving video stream
     def InitReceivingThread(self):
-        self.receive_thread = Receive()
+        self.receive_thread = Receive_Video()
         self.receive_thread.update_frame.connect(self.update_image)
         self.receive_thread.start()
-    
+
+    def InitReceivingLPThread(self):
+        self.receive_thread_lp = Receive_Video()
+        self.receive_thread_lp.update_license_plate.connect(self.update_license_plate)
+        self.receive_thread_lp.start()
+
     #on switch page methods
     def stop_streaming(self):
         if self.streaming_active == True:
             self.receive_thread.stop()
+            self.streaming_active = False
+
+    def stop_receiving_license_plate(self):
+        if self.receiving_license_plate == True:
+            self.receive_thread_lp.stop()
+            self.streaming_active = False
 
     def clear_table(self):
         self.CarsTable.setRowCount(0)
+        self.auth_table.setRowCount(0)
 
     def on_switch(self):
         self.stop_streaming()
         self.clear_table()
 
-    # video frames
+############################ HOME #############################
+
     def update_image(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = QImage(frame.data, 640, 480, QImage.Format_RGB888)
         img_scaled = img.scaled(480, 360, QtCore.Qt.KeepAspectRatio)
         self.video.setPixmap(QPixmap.fromImage(img_scaled))
 
-    # current state table
+    def update_license_plate(self, frame):
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = img.shape
+        bytes_per_line = ch*w
+        q_img = QImage(img.date, w, h, bytes_per_line, QImage.Format_RGB888)
+        self.video.setPixmap(QPixmap.fromImage(q_img))
+
+    def display_home_page(self):
+        self.on_switch()
+        self.content.setCurrentWidget(self.home_page)
+        self.streaming_active = True
+        self.InitReceivingThread()
+        self.receiving_license_plate = True
+        self.InitReceivingLPThread()
+
+############################ CURRENT STATE #############################
+
     def update_table(self):
-        selects = Selects()
-        cars_table =  selects.get_current_cars()
+        cars_table =  self.selects.get_current_cars()
         cars_table_len = len(cars_table)
 
         self.CarsTable.setRowCount(cars_table_len)
@@ -67,11 +102,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.CarsTable.insertRow(i)
             for j in range(0, 4):
                 self.CarsTable.setItem(i, j, QtWidgets.QTableWidgetItem(str(cars_table[i][j])))
-    
-    # add new auth car
+
+    def display_current_state_page(self):
+        self.on_switch()
+        self.content.setCurrentWidget(self.current_state_page)
+        self.update_table()
+
+############################ AUTH #############################
+
     def on_auth_submit(self):
-        self.update_auth_table()
-        insert = Inserts()
         license_plate = self.lineEdit.text()
         start_qdate = self.dateEdit.date()
         end_qdate = self.dateEdit_2.date()
@@ -81,8 +120,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         now = datetime.now()
 
-        if start_date >= now and end_date >= now:
-            insert.insert_auth_car(license_plate, start_date, end_date)
+        if start_date >= now and end_date >= start_date:
+            self.inserts.insert_auth_car(license_plate, start_date, end_date)
 
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
@@ -98,10 +137,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msg_box.exec_()
 
-    # auth car table
+        self.auth_table.setRowCount(0)
+        self.update_auth_table()
+
     def update_auth_table(self):
-        selects = Selects()
-        cars_table =  selects.get_auth_cars()
+        cars_table =  self.selects.get_auth_cars()
         cars_table_len = len(cars_table)
 
         self.auth_table.setRowCount(cars_table_len)
@@ -111,22 +151,28 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             for j in range(0, 3):
                 self.auth_table.setItem(i, j, QtWidgets.QTableWidgetItem(str(cars_table[i][j])))
 
-    def display_home_page(self):
-        self.on_switch()
-        self.content.setCurrentWidget(self.home_page)
-        self.streaming_active = True
-        self.InitReceivingThread()
+            delete_button = QPushButton("Delete")
+            delete_button.clicked.connect(lambda _, row=i: self.delete_auth_car(row))
 
-    def display_current_state_page(self):
-        self.on_switch()
-        self.content.setCurrentWidget(self.current_state_page)
-        self.update_table()
+            self.auth_table.setCellWidget(i, 3, delete_button)
+
+    def delete_auth_car(self, row):
+        license_plate = self.auth_table.item(row, 0).text()
+
+        self.inserts.remove_auth_car(license_plate)
+        self.auth_table.removeRow(row)
+
 
     def display_auth_list_page(self):
         self.on_switch()
         self.content.setCurrentWidget(self.auth_list_page)
         self.update_auth_table()
-        self.authSubmit.clicked.connect(self.on_auth_submit)
+
+        if not self.auth_submit_connected:
+            self.authSubmit.clicked.connect(self.on_auth_submit)
+            self.auth_submit_connected = True
+
+############################ SETTINGS #############################
 
     def update_settings(self):
         management_settings = self.settings.get("management_settings", {})
@@ -207,11 +253,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             json.dump(self.settings, f, indent=4)
         
     def on_reset_button(self):
+        with open('settings/default_settings.json', 'r') as f:
+            default_settings = json.load(f)
+
+        self.settings = default_settings
+
+        with open('settings/settings.json', 'w') as f:
+            json.dump(self.settings, f, indent=4)
+
+        self.update_settings()
+
     def display_settings_page(self):
         self.on_switch()
         self.content.setCurrentWidget(self.settings_page)
         self.update_settings()
-        #self.reset_button.clicked.connect(self.on_reset_settings)
+        self.reset_button.clicked.connect(self.on_reset_button)
         self.submit_button.clicked.connect(self.on_submit_button)
 
     

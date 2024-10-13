@@ -32,6 +32,12 @@ class Inserts():
         if start_time < datetime.now():
             return False
         return True
+    
+    def remove_auth_car(self, license_plate): 
+        car_to_remove = self.session.query(AuthorizedCars).filter_by(license_plate=license_plate).first()
+        if car_to_remove:
+            self.session.delete(car_to_remove)
+            self.session.commit()
 
 if __name__ == "__main__":
     insert = Inserts()

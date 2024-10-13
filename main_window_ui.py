@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(875, 661)
+        MainWindow.resize(884, 661)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
@@ -157,6 +157,8 @@ class Ui_MainWindow(object):
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.w23)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.video = QtWidgets.QLabel(self.w23)
+        self.video.setMinimumSize(QtCore.QSize(480, 360))
+        self.video.setMaximumSize(QtCore.QSize(480, 360))
         self.video.setText("")
         self.video.setObjectName("video")
         self.verticalLayout_2.addWidget(self.video)
@@ -677,8 +679,10 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.auth_table.sizePolicy().hasHeightForWidth())
         self.auth_table.setSizePolicy(sizePolicy)
+        self.auth_table.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.auth_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.auth_table.setObjectName("auth_table")
-        self.auth_table.setColumnCount(3)
+        self.auth_table.setColumnCount(4)
         self.auth_table.setRowCount(0)
         item = QtWidgets.QTableWidgetItem()
         self.auth_table.setHorizontalHeaderItem(0, item)
@@ -686,8 +690,10 @@ class Ui_MainWindow(object):
         self.auth_table.setHorizontalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
         self.auth_table.setHorizontalHeaderItem(2, item)
+        item = QtWidgets.QTableWidgetItem()
+        self.auth_table.setHorizontalHeaderItem(3, item)
         self.auth_table.horizontalHeader().setCascadingSectionResizes(False)
-        self.auth_table.horizontalHeader().setDefaultSectionSize(283)
+        self.auth_table.horizontalHeader().setDefaultSectionSize(200)
         self.auth_table.horizontalHeader().setStretchLastSection(True)
         self.verticalLayout_16.addWidget(self.auth_table)
         self.content.addWidget(self.auth_list_page)
@@ -697,7 +703,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
-        self.content.setCurrentIndex(3)
+        self.content.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -760,6 +766,8 @@ class Ui_MainWindow(object):
         item.setText(_translate("MainWindow", "Authorization start"))
         item = self.auth_table.horizontalHeaderItem(2)
         item.setText(_translate("MainWindow", "Authorization expire"))
+        item = self.auth_table.horizontalHeaderItem(3)
+        item.setText(_translate("MainWindow", "Delete"))
 
 
 if __name__ == "__main__":
