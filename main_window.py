@@ -5,10 +5,12 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QPushButton
 from main_window_ui import Ui_MainWindow
 from receive_video import Receive_Video
+from receive_license_plate import Receive_License_Plate
 from db_selects import Selects
 from db_inserts import Inserts
 from datetime import datetime
 import json
+import threading
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -20,7 +22,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.auth_list_button.clicked.connect(self.display_auth_list_page)
         self.settings_button.clicked.connect(self.display_settings_page)
         self.streaming_active = False
-        self.receiving_license_plate = False
+        self.receiving_license_plate_active = False
         
         self.auth_submit_connected = False
 
@@ -44,9 +46,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.receive_thread.start()
 
     def InitReceivingLPThread(self):
-        self.receive_thread_lp = Receive_Video()
-        self.receive_thread_lp.update_license_plate.connect(self.update_license_plate)
+        self.receive_thread_lp = Receive_License_Plate(host='192.168.1.133', port=9998)
+        self.receive_thread_lp.license_plate.connect(self.update_image_lp)
         self.receive_thread_lp.start()
+
 
     #on switch page methods
     def stop_streaming(self):
@@ -55,9 +58,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.streaming_active = False
 
     def stop_receiving_license_plate(self):
-        if self.receiving_license_plate == True:
+        if self.receiving_license_plate_active == True:
             self.receive_thread_lp.stop()
-            self.streaming_active = False
+            self.receiving_license_plate_active = False
 
     def clear_table(self):
         self.CarsTable.setRowCount(0)
@@ -65,6 +68,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def on_switch(self):
         self.stop_streaming()
+        self.stop_receiving_license_plate()
         self.clear_table()
 
 ############################ HOME #############################
@@ -75,19 +79,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         img_scaled = img.scaled(480, 360, QtCore.Qt.KeepAspectRatio)
         self.video.setPixmap(QPixmap.fromImage(img_scaled))
 
-    def update_license_plate(self, frame):
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = img.shape
-        bytes_per_line = ch*w
-        q_img = QImage(img.date, w, h, bytes_per_line, QImage.Format_RGB888)
-        self.video.setPixmap(QPixmap.fromImage(q_img))
-
+    def update_image_lp(self, frame):
+        if frame is not None and frame.size > 0:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+            self.l_plate.setPixmap(QPixmap.fromImage(img))
+            
     def display_home_page(self):
         self.on_switch()
         self.content.setCurrentWidget(self.home_page)
         self.streaming_active = True
         self.InitReceivingThread()
-        self.receiving_license_plate = True
+        self.receiving_license_plate_active = True
         self.InitReceivingLPThread()
 
 ############################ CURRENT STATE #############################
