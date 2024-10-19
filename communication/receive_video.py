@@ -20,7 +20,7 @@ def create_no_signal_img():
     return no_signal_frame
 
 
-class Receive_Video(QThread):
+class ReceiveVideo(QThread):
     update_frame = pyqtSignal(np.ndarray)
 
     def __init__(self, host='0.0.0.0', port=9999, bufSize=20000):

@@ -1,13 +1,14 @@
 import cv2
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import Qt, pyqtSignal, QThread
+from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTime
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QPushButton
 from main_window_ui import Ui_MainWindow
-from receive_video import Receive_Video
-from receive_license_plate import Receive_License_Plate
-from db_selects import Selects
-from db_inserts import Inserts
+from communication.receive_video import ReceiveVideo
+from communication.receive_img import ReceiveImg
+#from communication.receive_data import ReceiveData
+from database.db_selects import Selects
+from database.db_inserts import Inserts
 from datetime import datetime
 import json
 import threading
@@ -20,6 +21,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.home_button.clicked.connect(self.display_home_page)
         self.current_state_button.clicked.connect(self.display_current_state_page)
         self.auth_list_button.clicked.connect(self.display_auth_list_page)
+        self.analitics_button.clicked.connect(self.display_analitics_page)
+        self.camera_button.clicked.connect(self.display_settings_page)
         self.settings_button.clicked.connect(self.display_settings_page)
         self.streaming_active = False
         self.receiving_license_plate_active = False
@@ -40,15 +43,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         return settings
 
     # reciving video stream
-    def InitReceivingThread(self):
-        self.receive_thread = Receive_Video()
+    def InitReceivingVideoThread(self):
+        self.receive_thread = ReceiveVideo()
         self.receive_thread.update_frame.connect(self.update_image)
         self.receive_thread.start()
 
-    def InitReceivingLPThread(self):
-        self.receive_thread_lp = Receive_License_Plate(host='192.168.1.133', port=9998)
+    def InitReceivingImgThread(self):
+        self.receive_thread_lp = ReceiveImg(host='192.168.1.133', port=9998)
         self.receive_thread_lp.license_plate.connect(self.update_image_lp)
         self.receive_thread_lp.start()
+
+    # def InitReceivingDataThread(self):
+    #     self.receive_thread_lp = ReceiveImg(host='192.168.1.133', port=9998)
+    #     self.receive_thread_lp.license_plate.connect(self.update_image_lp)
+    #     self.receive_thread_lp.start()        
 
 
     #on switch page methods
@@ -84,14 +92,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
             self.l_plate.setPixmap(QPixmap.fromImage(img))
-            
+
     def display_home_page(self):
         self.on_switch()
         self.content.setCurrentWidget(self.home_page)
         self.streaming_active = True
-        self.InitReceivingThread()
+        self.InitReceivingVideoThread()
         self.receiving_license_plate_active = True
-        self.InitReceivingLPThread()
+        self.InitReceivingImgThread()
 
 ############################ CURRENT STATE #############################
 
@@ -175,6 +183,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.authSubmit.clicked.connect(self.on_auth_submit)
             self.auth_submit_connected = True
 
+############################ ANALITICS PAGE #######################
+    def display_analitics_page(self):
+        self.on_switch()
+        self.content.setCurrentWidget(self.analitics_page)
+
 ############################ SETTINGS #############################
 
     def update_settings(self):
@@ -218,6 +231,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         recognition_confidence = recognition_settings.get("recognition_confidence", 50)
         self.conf_box.setValue(recognition_confidence)
 
+        car_park_info_settings = self.settings.get("car_park_info_settings", {})
+        start_time = car_park_info_settings.get("opening_hour", "08:00")
+        close_time = car_park_info_settings.get("closing_hour", "20:00")
+        self.openup_time.setTime(QTime.fromString(start_time, "HH:mm:ss"))
+        self.close_time.setTime(QTime.fromString(close_time, "HH:mm:ss"))
+
+        capacity = car_park_info_settings.get("total_capacity", 1000)
+        self.capacity.setValue(capacity)
+
     def on_submit_button(self):
         management_settings = {}
 
@@ -249,8 +271,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         connection_settings["data2"]["ip"] = self.data2_ip.text()
         connection_settings["data2"]["port"] = self.data2_port.text()
 
+        recognition_settings = {}
+        recognition_settings["recognition_confidence"] = self.conf_box.value()
+
+        car_park_info_settings = {}
+        car_park_info_settings["opening_hour"] = self.openup_time.time().toString("HH:mm:ss")
+        car_park_info_settings["closing_hour"] = self.close_time.time().toString("HH:mm:ss")
+        car_park_info_settings["total_capacity"] = self.capacity.value()
+
         self.settings["management_settings"] = management_settings
         self.settings["connection_settings"] = connection_settings
+        self.settings["recognition_settings"] = recognition_settings
+        self.settings["car_park_info_settings"] = car_park_info_settings
 
         with open("settings/settings.json", 'w') as f:
             json.dump(self.settings, f, indent=4)

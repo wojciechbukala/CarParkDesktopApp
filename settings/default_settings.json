@@ -20,5 +20,10 @@
     },
     "recognition_settings": {
         "recognition_confidence": 50
+    },
+    "car_park_info_settings": {
+        "opening_hour": "08:00",
+        "closing_hour": "20:00",
+        "total_capacity": 1000
     }
 }

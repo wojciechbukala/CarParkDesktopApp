@@ -17,7 +17,7 @@ def error_img(description):
     return none_img
 
 
-class Receive_License_Plate(QThread):
+class ReceiveImg(QThread):
 
     license_plate = pyqtSignal(np.ndarray)
 
