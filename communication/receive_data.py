@@ -17,8 +17,6 @@ class ReceiveData(QThread):
         self.client_socket = None
         self.running = False
 
-        self.no_data = "no data"
-        self.current_data = self.no_data
 
     def connect(self):
         if self.client_socket is None:
@@ -27,7 +25,7 @@ class ReceiveData(QThread):
                 self.client_socket.connect((self.host, self.port))
                 #print("[INFO] Połączono z serwerem.")
             except Exception as e:
-                self.current_data = self.no_data
+                pass
 
     def receive_data(self):
         if self.client_socket:
@@ -53,20 +51,21 @@ class ReceiveData(QThread):
                     data += received_packet
 
                 received_data = json.loads(data.decode('utf-8'))
-                self.current_data = received_data
-                #print(f"[INFO] Otrzymano dane: {received_data}")
+
+                plate = received_data.get('license_plate', 'No plate detected')
+                self.license_plate_string.emit(plate)
+
 
             except Exception as e:
                 self.client_socket.close()
                 self.client_socket = None
-                self.current_data = self.no_data
 
     def run(self):
         self.running = True
         while self.running:
             self.connect() 
             self.receive_data()
-            self.license_plate_string.emit(self.current_data)
+            time.sleep(1)
 
     def stop(self):
         self.running = False

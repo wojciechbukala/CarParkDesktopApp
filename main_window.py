@@ -6,9 +6,9 @@ from PyQt5.QtWidgets import QPushButton
 from main_window_ui import Ui_MainWindow
 from communication.receive_video import ReceiveVideo
 from communication.receive_img import ReceiveImg
-#from communication.receive_data import ReceiveData
-from database.db_selects import Selects
-from database.db_inserts import Inserts
+from communication.receive_data import ReceiveData
+import database.read_database as rd
+import database.write_to_database as wtd
 from datetime import datetime
 import json
 import threading
@@ -26,14 +26,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.settings_button.clicked.connect(self.display_settings_page)
         self.streaming_active = False
         self.receiving_license_plate_active = False
+        self.receiving_lp_data_active = False
         
         self.auth_submit_connected = False
 
-        self.selects = Selects()
-        self.inserts = Inserts()
-
         self.settings = self.read_settings()
-
 
         self.display_home_page()
 
@@ -53,11 +50,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.receive_thread_lp.license_plate.connect(self.update_image_lp)
         self.receive_thread_lp.start()
 
-    # def InitReceivingDataThread(self):
-    #     self.receive_thread_lp = ReceiveImg(host='192.168.1.133', port=9998)
-    #     self.receive_thread_lp.license_plate.connect(self.update_image_lp)
-    #     self.receive_thread_lp.start()        
-
+    def InitReceivingDataThread(self):
+        print("zaczynam dzialanie")
+        self.receive_thread_data = ReceiveData(host='192.168.1.133', port=9997)
+        self.receive_thread_data.license_plate_string.connect(self.update_text)
+        self.receive_thread_data.start()
 
     #on switch page methods
     def stop_streaming(self):
@@ -70,6 +67,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.receive_thread_lp.stop()
             self.receiving_license_plate_active = False
 
+    def stop_receiving_data(self):
+        if self.receiving_lp_data_active == True:
+            self.receive_thread_data.stop()
+            self.receiving_lp_data_active = False
+
     def clear_table(self):
         self.CarsTable.setRowCount(0)
         self.auth_table.setRowCount(0)
@@ -77,6 +79,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_switch(self):
         self.stop_streaming()
         self.stop_receiving_license_plate()
+        self.stop_receiving_data()
         self.clear_table()
 
 ############################ HOME #############################
@@ -91,7 +94,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if frame is not None and frame.size > 0:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            self.l_plate.setPixmap(QPixmap.fromImage(img))
+            self.l_plate_img.setPixmap(QPixmap.fromImage(img))
+
+    def update_text(self, text):
+        print("dzialam")
+        self.l_plate_text.setText(text)
 
     def display_home_page(self):
         self.on_switch()
@@ -100,19 +107,25 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.InitReceivingVideoThread()
         self.receiving_license_plate_active = True
         self.InitReceivingImgThread()
+        self.receiving_data_active = True
+        self.InitReceivingDataThread()
 
 ############################ CURRENT STATE #############################
 
     def update_table(self):
-        cars_table =  self.selects.get_current_cars()
-        cars_table_len = len(cars_table)
+        records_exist, cars_list = rd.get_cars()
+        if records_exist == True:
+            cars_list_len = len(cars_list)
+            print(cars_list_len)
 
-        self.CarsTable.setRowCount(cars_table_len)
+            self.CarsTable.setRowCount(cars_list_len)
 
-        for i in range(0, cars_table_len):
-            self.CarsTable.insertRow(i)
-            for j in range(0, 4):
-                self.CarsTable.setItem(i, j, QtWidgets.QTableWidgetItem(str(cars_table[i][j])))
+            for i in range(0, cars_list_len):
+                self.CarsTable.insertRow(i)
+                self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['carID'])))
+                self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
+                self.CarsTable.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
+                self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
 
     def display_current_state_page(self):
         self.on_switch()
@@ -126,20 +139,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         start_qdate = self.dateEdit.date()
         end_qdate = self.dateEdit_2.date()
 
-        start_date = datetime.combine(start_qdate.toPyDate(),  datetime.min.time())
-        end_date = datetime.combine(end_qdate.toPyDate(),  datetime.min.time())
+        start_date = datetime.combine(start_qdate.toPyDate(), datetime.min.time())
+        end_date = datetime.combine(end_qdate.toPyDate(), datetime.min.time())
 
         now = datetime.now()
 
         if start_date >= now and end_date >= start_date:
-            self.inserts.insert_auth_car(license_plate, start_date, end_date)
-
-            msg_box = QtWidgets.QMessageBox()
-            msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Data Submitted")
-            msg_box.setText("Data written")
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            msg_box.exec_()
+            if wtd.insert_authorization(license_plate, start_date.strftime('%Y-%m-%d %H:%M:%S'), end_date.strftime('%Y-%m-%d %H:%M:%S')):
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setIcon(QtWidgets.QMessageBox.Information)
+                msg_box.setWindowTitle("Data Submitted")
+                msg_box.setText("Data written successfully!")
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                msg_box.exec_()
+            else:
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setIcon(QtWidgets.QMessageBox.Critical)
+                msg_box.setWindowTitle("Error")
+                msg_box.setText("Failed to write data! Check the server.")
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                msg_box.exec_()
         else:
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
@@ -152,27 +171,43 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.update_auth_table()
 
     def update_auth_table(self):
-        cars_table =  self.selects.get_auth_cars()
-        cars_table_len = len(cars_table)
+        records_exist, cars_list = rd.get_auth_cars()
 
-        self.auth_table.setRowCount(cars_table_len)
+        if records_exist == True:
+            cars_list_len = len(cars_list)
 
-        for i in range(0, cars_table_len):
-            self.auth_table.insertRow(i)
-            for j in range(0, 3):
-                self.auth_table.setItem(i, j, QtWidgets.QTableWidgetItem(str(cars_table[i][j])))
+            self.auth_table.setRowCount(cars_list_len)
 
-            delete_button = QPushButton("Delete")
-            delete_button.clicked.connect(lambda _, row=i: self.delete_auth_car(row))
+            for i in range(0, cars_list_len):
+                self.auth_table.insertRow(i)
+                
+                self.auth_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]["license_plate"])))
+                self.auth_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_start_date"])))
+                self.auth_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_end_date"])))
 
-            self.auth_table.setCellWidget(i, 3, delete_button)
+                delete_button = QPushButton("Delete")
+                delete_button.clicked.connect(lambda _, row=i: self.delete_auth_car(row))
+
+                self.auth_table.setCellWidget(i, 3, delete_button)
 
     def delete_auth_car(self, row):
         license_plate = self.auth_table.item(row, 0).text()
 
-        self.inserts.remove_auth_car(license_plate)
-        self.auth_table.removeRow(row)
-
+        if wtd.delete_authorization(license_plate):
+            self.auth_table.removeRow(row)
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Delete")
+            msg_box.setText("Car authorization removed!")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+        else:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Delete")
+            msg_box.setText("Car ramoving failed! Try again.")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
 
     def display_auth_list_page(self):
         self.on_switch()
