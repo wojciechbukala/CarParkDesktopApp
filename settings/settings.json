@@ -1,8 +1,8 @@
 {
     "management_settings": {
-        "entrance_mode": "authorized",
-        "payment_mode": "fee_per_hour",
-        "fee_per_hour": 10.0
+        "entrance_mode" : "authorized",
+        "payment_mode" : "fee_per_hour",
+        "fee_per_hour" : 10.0
     },
     "connection_settings": {
         "video": {
@@ -16,10 +16,17 @@
         "data2": {
             "ip": "0.0.0.0",
             "port": 9997
+        },
+        "database": {
+            "ip": "192.168.1.133",
+            "port": 5000
         }
     },
     "recognition_settings": {
-        "recognition_confidence": 50
+        "recognition_confidence": 0.3,
+        "detection_interval": 1.5,
+        "recognition_model": "best.pt",
+        "region_mode": 0
     },
     "car_park_info_settings": {
         "opening_hour": "08:00",

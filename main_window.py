@@ -7,6 +7,7 @@ from main_window_ui import Ui_MainWindow
 from communication.receive_video import ReceiveVideo
 from communication.receive_img import ReceiveImg
 from communication.receive_data import ReceiveData
+from communication.send_settings import change_settings
 import database.read_database as rd
 import database.write_to_database as wtd
 from datetime import datetime
@@ -33,6 +34,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.settings = self.read_settings()
 
         self.display_home_page()
+
+        self.recognition_model.addItem("best.pt")
+        self.recognition_model.addItem("other.pt")
 
     def read_settings(self):
         with open('settings/settings.json', 'r') as f:
@@ -262,9 +266,30 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.data2_ip.setText(data2_ip)
         self.data2_port.setText(str(data2_port))
 
+        database_ip = connection_settings.get("database", {}).get("ip", "0.0.0.0")
+        database_port = connection_settings.get("database", {}).get("port", 0)
+        self.database_ip.setText(database_ip)
+        self.database_port.setText(str(database_port))
+
         recognition_settings = self.settings.get("recognition_settings", {})
         recognition_confidence = recognition_settings.get("recognition_confidence", 50)
+        detection_interval = recognition_settings.get("detection_interval", 1.5)
+        recognition_model = recognition_settings.get("recognition_model", "best.pt")
+        
+        index = self.recognition_model.findText(recognition_model)
+        if index != -1:
+            self.recognition_model.setCurrentIndex(index)
+
+        region_mode = recognition_settings.get("region_mode", "free")
+        if region_mode == 0:
+            self.europe.setChecked(True)
+        elif region_mode == 1:
+            self.north_america.setChecked(True)
+        elif region_mode == 2:
+            self.asia.setChecked(True)
+
         self.conf_box.setValue(recognition_confidence)
+        self.detection_interval.setValue(fee_per_hour_val)
 
         car_park_info_settings = self.settings.get("car_park_info_settings", {})
         start_time = car_park_info_settings.get("opening_hour", "08:00")
@@ -306,8 +331,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         connection_settings["data2"]["ip"] = self.data2_ip.text()
         connection_settings["data2"]["port"] = self.data2_port.text()
 
+        connection_settings.setdefault("database", {})
+        connection_settings["database"]["ip"] = self.database_ip.text()
+        connection_settings["database"]["port"] = self.database_port.text()
+
         recognition_settings = {}
         recognition_settings["recognition_confidence"] = self.conf_box.value()
+        recognition_settings["detection_interval"] = self.detection_interval.value()
+        recognition_settings["recognition_model"] = self.recognition_model.currentText()
+        if self.europe.isChecked():
+            recognition_settings["region_mode"] = 0
+        elif self.north_america.isChecked():
+            recognition_settings["region_mode"] = 1
+        elif self.asia.isChecked():
+            recognition_settings["region_mode"] = 2
 
         car_park_info_settings = {}
         car_park_info_settings["opening_hour"] = self.openup_time.time().toString("HH:mm:ss")
@@ -321,6 +358,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         with open("settings/settings.json", 'w') as f:
             json.dump(self.settings, f, indent=4)
+
+        module_settings = {
+            "mode": management_settings["entrance_mode"],
+            "payment_mode": management_settings["payment_mode"],
+            "recognition_confidence": recognition_settings["recognition_confidence"],
+            "detection_interval": recognition_settings["detection_interval"],
+            "recognition_model": recognition_settings["recognition_model"],
+            "region": recognition_settings["region_mode"]
+            "total_capacity": car_park_info_settings["total_capacity"]
+        }
+
+        if change_settings(module_settings) == True:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Settings")
+            msg_box.setText("Settings loaded to module successfully!")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+        else:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Delete")
+            msg_box.setText("Failed to load settings to the module.")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+
+        
         
     def on_reset_button(self):
         with open('settings/default_settings.json', 'r') as f:
