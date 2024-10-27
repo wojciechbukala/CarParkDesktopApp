@@ -1,12 +1,13 @@
 import cv2
+import os
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTime
+from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTime, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QPushButton
 from main_window_ui import Ui_MainWindow
 from communication.receive_video import ReceiveVideo
-from communication.receive_img import ReceiveImg
-from communication.receive_data import ReceiveData
+from communication.receive_img import error_img, receive_image
+from communication.receive_data import receive_detection_data
 from communication.send_settings import change_settings
 import database.read_database as rd
 import database.write_to_database as wtd
@@ -35,6 +36,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.display_home_page()
 
+        error_img("Waiting for license plate")
+
         self.recognition_model.addItem("best.pt")
         self.recognition_model.addItem("other.pt")
 
@@ -50,15 +53,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.receive_thread.start()
 
     def InitReceivingImgThread(self):
-        self.receive_thread_lp = ReceiveImg(host='192.168.1.133', port=9998)
-        self.receive_thread_lp.license_plate.connect(self.update_image_lp)
-        self.receive_thread_lp.start()
+        # self.receive_thread_lp = ReceiveImg(host='192.168.1.133', port=9998)
+        # self.receive_thread_lp.license_plate.connect(self.update_image_lp)
+        # self.receive_thread_lp.start()
+        self.receive_lp = QTimer()
+        self.receive_lp.timeout.connect(self.update_image_lp)
+        self.receive_lp.start(1000)
 
     def InitReceivingDataThread(self):
-        print("zaczynam dzialanie")
-        self.receive_thread_data = ReceiveData(host='192.168.1.133', port=9997)
-        self.receive_thread_data.license_plate_string.connect(self.update_text)
-        self.receive_thread_data.start()
+        # print("zaczynam dzialanie")
+        # self.receive_thread_data = ReceiveData(host='192.168.1.133', port=9997)
+        # self.receive_thread_data.license_plate_string.connect(self.update_text)
+        # self.receive_thread_data.start()
+        self.receive_data = QTimer()
+        self.receive_data.timeout.connect(self.update_data)
+        self.receive_data.start(1000)
 
     #on switch page methods
     def stop_streaming(self):
@@ -68,12 +77,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def stop_receiving_license_plate(self):
         if self.receiving_license_plate_active == True:
-            self.receive_thread_lp.stop()
+            self.receive_lp.stop()
             self.receiving_license_plate_active = False
 
     def stop_receiving_data(self):
         if self.receiving_lp_data_active == True:
-            self.receive_thread_data.stop()
+            self.receive_data.stop()
             self.receiving_lp_data_active = False
 
     def clear_table(self):
@@ -94,15 +103,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         img_scaled = img.scaled(480, 360, QtCore.Qt.KeepAspectRatio)
         self.video.setPixmap(QPixmap.fromImage(img_scaled))
 
-    def update_image_lp(self, frame):
-        if frame is not None and frame.size > 0:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            self.l_plate_img.setPixmap(QPixmap.fromImage(img))
+    def update_image_lp(self):
+        receive_image()
+        if os.path.exists("communication/detected.png"):
+            frame = cv2.imread("communication/detected.png")
+            if frame is not None and frame.size > 0:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+                self.l_plate_img.setPixmap(QPixmap.fromImage(img))
 
-    def update_text(self, text):
-        print("dzialam")
-        self.l_plate_text.setText(text)
+    def update_data(self):
+        detection_data = receive_detection_data()
+        if detection_data[0] == True:
+            self.l_plate_text.setText(detection_data[1]["license_plate"])
 
     def display_home_page(self):
         self.on_switch()
@@ -365,7 +378,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             "recognition_confidence": recognition_settings["recognition_confidence"],
             "detection_interval": recognition_settings["detection_interval"],
             "recognition_model": recognition_settings["recognition_model"],
-            "region": recognition_settings["region_mode"]
+            "region": recognition_settings["region_mode"],
             "total_capacity": car_park_info_settings["total_capacity"]
         }
 
