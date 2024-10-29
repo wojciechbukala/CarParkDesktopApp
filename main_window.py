@@ -15,6 +15,9 @@ from datetime import datetime
 import json
 import threading
 
+green_backgroud = "background-color: #3fb618;"
+red_backgroud = "background-color: #ff0039;"
+
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -53,18 +56,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.receive_thread.start()
 
     def InitReceivingImgThread(self):
-        # self.receive_thread_lp = ReceiveImg(host='192.168.1.133', port=9998)
-        # self.receive_thread_lp.license_plate.connect(self.update_image_lp)
-        # self.receive_thread_lp.start()
         self.receive_lp = QTimer()
         self.receive_lp.timeout.connect(self.update_image_lp)
         self.receive_lp.start(1000)
 
     def InitReceivingDataThread(self):
-        # print("zaczynam dzialanie")
-        # self.receive_thread_data = ReceiveData(host='192.168.1.133', port=9997)
-        # self.receive_thread_data.license_plate_string.connect(self.update_text)
-        # self.receive_thread_data.start()
         self.receive_data = QTimer()
         self.receive_data.timeout.connect(self.update_data)
         self.receive_data.start(1000)
@@ -115,7 +111,23 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def update_data(self):
         detection_data = receive_detection_data()
         if detection_data[0] == True:
-            self.l_plate_text.setText(detection_data[1]["license_plate"])
+            self.l_plate_text.setText(detection_data[1]["license_plate"].strip())
+            if detection_data[1]["acceptance"]:
+                self.status_label.setStyleSheet("background-color: #3fb618;\n"
+"font: 12pt \"Sans Serif Collection\";")
+                self.status_label.setText("Access")
+            else:
+                self.status_label.setStyleSheet("background-color: #ff0039;\n"
+"font: 12pt \"Sans Serif Collection\";")
+                self.status_label.setText("Denied access")
+
+            self.conf_label.show()
+            self.conf_label.setText(f"   Model confidence: {detection_data[1]['confidence']}" )
+            self.model_label.show()
+            self.model_label.setText(f"   Used model: {detection_data[1]['model']}")
+            self.capacity_label.show()
+            self.capacity_label.setText(f"   Capacity left: {detection_data[1]['capacity_left']}")
+
 
     def display_home_page(self):
         self.on_switch()
@@ -124,6 +136,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.InitReceivingVideoThread()
         self.receiving_license_plate_active = True
         self.InitReceivingImgThread()
+        self.conf_label.hide()
+        self.model_label.hide()
+        self.capacity_label.hide()
         self.receiving_data_active = True
         self.InitReceivingDataThread()
 
@@ -269,16 +284,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.video_ip.setText(video_ip)
         self.video_port.setText(str(video_port))
 
-        data1_ip = connection_settings.get("data1", {}).get("ip", "0.0.0.0")
-        data1_port = connection_settings.get("data1", {}).get("port", 0)
-        self.data1_ip.setText(data1_ip)
-        self.data1_port.setText(str(data1_port))
-
-        data2_ip = connection_settings.get("data2", {}).get("ip", "0.0.0.0")
-        data2_port = connection_settings.get("data2", {}).get("port", 0)
-        self.data2_ip.setText(data2_ip)
-        self.data2_port.setText(str(data2_port))
-
         database_ip = connection_settings.get("database", {}).get("ip", "0.0.0.0")
         database_port = connection_settings.get("database", {}).get("port", 0)
         self.database_ip.setText(database_ip)
@@ -336,13 +341,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         connection_settings["video"]["ip"] = self.video_ip.text()
         connection_settings["video"]["port"] = self.video_port.text()
 
-        connection_settings.setdefault("data1", {})
-        connection_settings["data1"]["ip"] = self.data1_ip.text()
-        connection_settings["data1"]["port"] = self.data1_port.text()
-
-        connection_settings.setdefault("data2", {})
-        connection_settings["data2"]["ip"] = self.data2_ip.text()
-        connection_settings["data2"]["port"] = self.data2_port.text()
 
         connection_settings.setdefault("database", {})
         connection_settings["database"]["ip"] = self.database_ip.text()
