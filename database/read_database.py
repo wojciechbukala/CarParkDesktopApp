@@ -1,7 +1,7 @@
 import requests
 from datetime import date
 
-server_address = "192.168.1.133:5000"
+server_address = "192.168.8.118:5000"
 
 def get_cars():
     url = f"http://{server_address}/get_cars"

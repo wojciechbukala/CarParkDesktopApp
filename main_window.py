@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTime, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QPushButton
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from main_window_ui import Ui_MainWindow
 from communication.receive_video import ReceiveVideo
 from communication.receive_img import error_img, receive_image
@@ -14,6 +15,7 @@ import database.write_to_database as wtd
 from datetime import datetime
 import json
 import threading
+import requests
 
 green_backgroud = "background-color: #3fb618;"
 red_backgroud = "background-color: #ff0039;"
@@ -37,6 +39,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.settings = self.read_settings()
 
+        self.database_connected = False
+
+        self.database_check_timer = QTimer()
+        self.database_check_timer.timeout.connect(self.check_server)
+        self.database_check_timer.start(3000)
+
         self.display_home_page()
 
         error_img("Waiting for license plate")
@@ -48,6 +56,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         with open('settings/settings.json', 'r') as f:
             settings = json.load(f)
         return settings
+
+    def check_server(self):
+        def check():
+            try:
+                response = requests.get(f"http://192.168.8.118:5000/status", timeout=0.1)
+                if response.status_code == 200:
+                    self.database_connected = True
+            except (requests.ConnectionError, requests.Timeout):
+                self.database_connected = False
+        threading.Thread(target=check, daemon=True).start()
 
     # reciving video stream
     def InitReceivingVideoThread(self):
@@ -100,33 +118,54 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.video.setPixmap(QPixmap.fromImage(img_scaled))
 
     def update_image_lp(self):
-        receive_image()
-        if os.path.exists("communication/detected.png"):
-            frame = cv2.imread("communication/detected.png")
-            if frame is not None and frame.size > 0:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-                self.l_plate_img.setPixmap(QPixmap.fromImage(img))
+        if self.database_connected:
+            if receive_image():
+                if os.path.exists("communication/detected.png"):
+                    frame = cv2.imread("communication/detected.png")
+                    if frame is not None and frame.size > 0:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+                        self.l_plate_img.setPixmap(QPixmap.fromImage(img))
+        else:
+            self.l_plate_img.setStyleSheet("background-color: #d4e6f9;\n"
+"font: 12pt \"Sans Serif Collection\";")
+            self.l_plate_img.setText("Server not connetcted")
 
     def update_data(self):
-        detection_data = receive_detection_data()
-        if detection_data[0] == True:
-            self.l_plate_text.setText(detection_data[1]["license_plate"].strip())
-            if detection_data[1]["acceptance"]:
-                self.status_label.setStyleSheet("background-color: #3fb618;\n"
-"font: 12pt \"Sans Serif Collection\";")
-                self.status_label.setText("Access")
-            else:
-                self.status_label.setStyleSheet("background-color: #ff0039;\n"
-"font: 12pt \"Sans Serif Collection\";")
-                self.status_label.setText("Denied access")
+        if self.database_connected:
+            detection_data = receive_detection_data()
+            if detection_data[0] == True:
+                license_plate = detection_data[1].get("license_plate", "Not detected").strip()
+                acceptance = detection_data[1].get("acceptance", False)
+                confidence = detection_data[1].get("confidence", 0)
+                confidence = round(float(confidence), 2)
+                model = detection_data[1].get("model", "model.pt")
+                capacity_left = detection_data[1].get("capacity_left", 0)
 
-            self.conf_label.show()
-            self.conf_label.setText(f"   Model confidence: {detection_data[1]['confidence']}" )
-            self.model_label.show()
-            self.model_label.setText(f"   Used model: {detection_data[1]['model']}")
-            self.capacity_label.show()
-            self.capacity_label.setText(f"   Capacity left: {detection_data[1]['capacity_left']}")
+                self.l_plate_text.setText(license_plate)
+                if acceptance:
+                    self.status_label.setStyleSheet("background-color: #3fb618;\n"
+    "font: 12pt \"Sans Serif Collection\";")
+                    self.status_label.setText("Access")
+                else:
+                    self.status_label.setStyleSheet("background-color: #ff0039;\n"
+    "font: 12pt \"Sans Serif Collection\";")
+                    self.status_label.setText("Denied access")
+
+                self.conf_label.show()
+                self.conf_label.setText(f"   Model confidence: {confidence}")
+                self.model_label.show()
+                self.model_label.setText(f"   Used model: {model}")
+                self.capacity_label.show()
+                self.capacity_label.setText(f"   Capacity left: {capacity_left}")
+        else:
+            self.l_plate_text.setText("Server not connetcted")
+            self.status_label.setStyleSheet("background-color: #d4e6f9;\n"
+"font: 12pt \"Sans Serif Collection\";")
+            self.status_label.setText("")
+            self.conf_label.hide()
+            self.model_label.hide()
+            self.capacity_label.hide()
 
 
     def display_home_page(self):

@@ -2,7 +2,7 @@ import requests
 import cv2
 import numpy as np
 
-server_address = "192.168.1.133:5000"
+server_address = "192.168.8.118:5000"
 
 def error_img(description):
     none_img = np.zeros(shape=(80, 280, 3), dtype=np.uint8)
@@ -19,3 +19,6 @@ def receive_image():
     if response.status_code == 200:
         with open("communication/detected.png", 'wb') as file:
             file.write(response.content)
+        return True
+    else:
+        return False

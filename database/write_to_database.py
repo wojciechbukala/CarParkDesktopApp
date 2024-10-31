@@ -1,7 +1,7 @@
 import requests
 from datetime import date
 
-server_address = "192.168.1.133:5000"
+server_address = "192.168.8.118:5000"
 
 def insert_authorization(license_plate, start_date, end_date):
     authorization = {

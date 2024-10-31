@@ -1,6 +1,6 @@
 import requests
 
-server_address = "192.168.1.133:5000"
+server_address = "192.168.8.118:5000"
 
 def change_settings(settings_dict):
     url = f"http://{server_address}/change_settings"
