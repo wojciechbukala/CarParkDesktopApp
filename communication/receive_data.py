@@ -1,10 +1,10 @@
 import requests
 import cv2
 import numpy as np
+import settings.handle_settings as st
 
-server_address = "192.168.8.118:5000"
 
-def receive_detection_data():
+def receive_detection_data(server_address):
     url = f"http://{server_address}/send_detection_data"
     response = requests.get(url)
 

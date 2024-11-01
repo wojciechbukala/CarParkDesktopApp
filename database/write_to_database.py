@@ -1,9 +1,9 @@
 import requests
 from datetime import date
 
-server_address = "192.168.8.118:5000"
+#server_address = "192.168.8.118:5000"
 
-def insert_authorization(license_plate, start_date, end_date):
+def insert_authorization(server_address, license_plate, start_date, end_date):
     authorization = {
         "license_plate": f"{license_plate}",
         "start_date": f"{start_date}",
@@ -18,7 +18,7 @@ def insert_authorization(license_plate, start_date, end_date):
     else:
         return False
 
-def delete_authorization(license_plate):
+def delete_authorization(server_address, license_plate):
     delete = {
         "license_plate": f"{license_plate}"
     }

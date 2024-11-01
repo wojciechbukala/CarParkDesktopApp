@@ -16,9 +16,9 @@ from datetime import datetime
 import json
 import threading
 import requests
-
-green_backgroud = "background-color: #3fb618;"
-red_backgroud = "background-color: #ff0039;"
+from functools import partial
+import settings.handle_settings as st
+import time
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -29,16 +29,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.current_state_button.clicked.connect(self.display_current_state_page)
         self.auth_list_button.clicked.connect(self.display_auth_list_page)
         self.analitics_button.clicked.connect(self.display_analitics_page)
-        self.camera_button.clicked.connect(self.display_settings_page)
+        self.database_button.clicked.connect(self.display_settings_page)
         self.settings_button.clicked.connect(self.display_settings_page)
+        self.gpio_button.clicked.connect(self.display_gpio_page)
         self.streaming_active = False
         self.receiving_license_plate_active = False
         self.receiving_lp_data_active = False
         
         self.auth_submit_connected = False
 
-        self.settings = self.read_settings()
+        #self.settings = self.read_settings()
+        st.read_settings()
+        self.database_address = f'{st.settings["connection_settings"]["database"]["ip"]}:{st.settings["connection_settings"]["database"]["port"]}'
 
+        self.database_button.setText(self.database_address)
         self.database_connected = False
 
         self.database_check_timer = QTimer()
@@ -47,24 +51,89 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.display_home_page()
 
-        error_img("Waiting for license plate")
+        self.UI_improvements()
 
+    def UI_improvements(self):
         self.recognition_model.addItem("best.pt")
         self.recognition_model.addItem("other.pt")
 
-    def read_settings(self):
-        with open('settings/settings.json', 'r') as f:
-            settings = json.load(f)
-        return settings
+        self.input1_type.addItem(" - ")
+        self.input1_type.addItem("switch-on")
+        self.input1_type.addItem("switch-off")
+        self.input1_type.addItem("binary gate state")
+
+        self.input2_type.addItem(" - ")
+        self.input2_type.addItem("switch-on")
+        self.input2_type.addItem("switch-off")
+        self.input2_type.addItem("binary gate state")
+
+        self.input3_type.addItem(" - ")
+        self.input3_type.addItem("switch-on")
+        self.input3_type.addItem("switch-off")
+        self.input3_type.addItem("binary gate state")
+
+        self.input4_type.addItem(" - ")
+        self.input4_type.addItem("switch-on")
+        self.input4_type.addItem("switch-off")
+        self.input4_type.addItem("binary gate state")
+
+        self.input5_type.addItem(" - ")
+        self.input5_type.addItem("switch-on")
+        self.input5_type.addItem("switch-off")
+        self.input5_type.addItem("binary gate state")
+
+        self.input6_type.addItem(" - ")
+        self.input6_type.addItem("switch-on")
+        self.input6_type.addItem("switch-off")
+        self.input6_type.addItem("binary gate state")
+
+        self.output1_type.addItem(" - ")
+        self.output1_type.addItem("gate open")
+        self.output1_type.addItem("gate close")
+        self.output1_type.addItem("gate switch state")
+
+        self.output2_type.addItem(" - ")
+        self.output2_type.addItem("gate open")
+        self.output2_type.addItem("gate close")
+        self.output2_type.addItem("gate switch state")
+                
+        self.output3_type.addItem(" - ")
+        self.output3_type.addItem("gate open")
+        self.output3_type.addItem("gate close")
+        self.output3_type.addItem("gate switch state")
+                
+        self.output4_type.addItem(" - ")
+        self.output4_type.addItem("gate open")
+        self.output4_type.addItem("gate close")
+        self.output4_type.addItem("gate switch state")
+                
+        self.output5_type.addItem(" - ")
+        self.output5_type.addItem("gate open")
+        self.output5_type.addItem("gate close")
+        self.output5_type.addItem("gate switch state")
+
+        self.output6_type.addItem(" - ")
+        self.output6_type.addItem("gate open")
+        self.output6_type.addItem("gate close")
+        self.output6_type.addItem("gate switch state")
+
+        self.synchronization_warning.hide()
+
+    # def read_settings(self):
+    #     with open('settings/settings.json', 'r') as f:
+    #         settings = json.load(f)
+    #     return settings
 
     def check_server(self):
         def check():
             try:
-                response = requests.get(f"http://192.168.8.118:5000/status", timeout=0.1)
+                response = requests.get(f"http://{self.database_address}/status", timeout=0.1)
                 if response.status_code == 200:
                     self.database_connected = True
+                    self.database_button.setStyleSheet("background-color: #3fb618;\n")
             except (requests.ConnectionError, requests.Timeout):
                 self.database_connected = False
+                self.database_button.setStyleSheet("background-color: #ff0039;\n")
         threading.Thread(target=check, daemon=True).start()
 
     # reciving video stream
@@ -119,7 +188,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def update_image_lp(self):
         if self.database_connected:
-            if receive_image():
+            if receive_image(self.database_address):
                 if os.path.exists("communication/detected.png"):
                     frame = cv2.imread("communication/detected.png")
                     if frame is not None and frame.size > 0:
@@ -128,12 +197,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                         self.l_plate_img.setPixmap(QPixmap.fromImage(img))
         else:
             self.l_plate_img.setStyleSheet("background-color: #d4e6f9;\n"
+"color: #000000;\n"
 "font: 12pt \"Sans Serif Collection\";")
             self.l_plate_img.setText("Server not connetcted")
 
     def update_data(self):
         if self.database_connected:
-            detection_data = receive_detection_data()
+            detection_data = receive_detection_data(self.database_address)
             if detection_data[0] == True:
                 license_plate = detection_data[1].get("license_plate", "Not detected").strip()
                 acceptance = detection_data[1].get("acceptance", False)
@@ -159,7 +229,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.capacity_label.show()
                 self.capacity_label.setText(f"   Capacity left: {capacity_left}")
         else:
-            self.l_plate_text.setText("Server not connetcted")
+            self.l_plate_text.setText("Server not connected")
             self.status_label.setStyleSheet("background-color: #d4e6f9;\n"
 "font: 12pt \"Sans Serif Collection\";")
             self.status_label.setText("")
@@ -184,19 +254,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 ############################ CURRENT STATE #############################
 
     def update_table(self):
-        records_exist, cars_list = rd.get_cars()
-        if records_exist == True:
-            cars_list_len = len(cars_list)
-            print(cars_list_len)
+        if self.database_connected:
+            self.not_connected_1.hide()
+            self.CarsTable.show()
+            records_exist, cars_list = rd.get_cars(self.database_address)
+            if records_exist == True:
+                cars_list_len = len(cars_list)
+                print(cars_list_len)
 
-            self.CarsTable.setRowCount(cars_list_len)
+                self.CarsTable.setRowCount(cars_list_len)
 
-            for i in range(0, cars_list_len):
-                self.CarsTable.insertRow(i)
-                self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['carID'])))
-                self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
-                self.CarsTable.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
-                self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
+                for i in range(0, cars_list_len):
+                    self.CarsTable.insertRow(i)
+                    self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['carID'])))
+                    self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
+                    self.CarsTable.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
+                    self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
+        else:
+            self.CarsTable.hide()
+            self.not_connected_1.show()
+
 
     def display_current_state_page(self):
         self.on_switch()
@@ -206,65 +283,79 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 ############################ AUTH #############################
 
     def on_auth_submit(self):
-        license_plate = self.lineEdit.text()
-        start_qdate = self.dateEdit.date()
-        end_qdate = self.dateEdit_2.date()
+        if self.database_connected:
+            license_plate = self.lineEdit.text()
+            start_qdate = self.dateEdit.date()
+            end_qdate = self.dateEdit_2.date()
 
-        start_date = datetime.combine(start_qdate.toPyDate(), datetime.min.time())
-        end_date = datetime.combine(end_qdate.toPyDate(), datetime.min.time())
+            start_date = datetime.combine(start_qdate.toPyDate(), datetime.min.time())
+            end_date = datetime.combine(end_qdate.toPyDate(), datetime.min.time())
 
-        now = datetime.now()
+            now = datetime.now()
 
-        if start_date >= now and end_date >= start_date:
-            if wtd.insert_authorization(license_plate, start_date.strftime('%Y-%m-%d %H:%M:%S'), end_date.strftime('%Y-%m-%d %H:%M:%S')):
-                msg_box = QtWidgets.QMessageBox()
-                msg_box.setIcon(QtWidgets.QMessageBox.Information)
-                msg_box.setWindowTitle("Data Submitted")
-                msg_box.setText("Data written successfully!")
-                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-                msg_box.exec_()
+            if start_date >= now and end_date >= start_date:
+                if wtd.insert_authorization(self.database_address, license_plate, start_date.strftime('%Y-%m-%d %H:%M:%S'), end_date.strftime('%Y-%m-%d %H:%M:%S')):
+                    msg_box = QtWidgets.QMessageBox()
+                    msg_box.setIcon(QtWidgets.QMessageBox.Information)
+                    msg_box.setWindowTitle("Data Submitted")
+                    msg_box.setText("Data written successfully!")
+                    msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                    msg_box.exec_()
+                else:
+                    msg_box = QtWidgets.QMessageBox()
+                    msg_box.setIcon(QtWidgets.QMessageBox.Critical)
+                    msg_box.setWindowTitle("Error")
+                    msg_box.setText("Failed to write data! Check the server.")
+                    msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                    msg_box.exec_()
             else:
                 msg_box = QtWidgets.QMessageBox()
-                msg_box.setIcon(QtWidgets.QMessageBox.Critical)
+                msg_box.setIcon(QtWidgets.QMessageBox.Information)
                 msg_box.setWindowTitle("Error")
-                msg_box.setText("Failed to write data! Check the server.")
+                msg_box.setText("Check dates and try again!")
                 msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
                 msg_box.exec_()
+
+            self.auth_table.setRowCount(0)
+            self.update_auth_table()
         else:
             msg_box = QtWidgets.QMessageBox()
-            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setIcon(QtWidgets.QMessageBox.Critical)
             msg_box.setWindowTitle("Error")
-            msg_box.setText("Check dates and try again!")
+            msg_box.setText("Failed to write data! Check the server.")
             msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msg_box.exec_()
 
-        self.auth_table.setRowCount(0)
-        self.update_auth_table()
-
     def update_auth_table(self):
-        records_exist, cars_list = rd.get_auth_cars()
+        if self.database_connected:
+            self.auth_table.show()
+            self.not_connected_2.hide()
+            records_exist, cars_list = rd.get_auth_cars(self.database_address)
 
-        if records_exist == True:
-            cars_list_len = len(cars_list)
+            if records_exist == True:
+                cars_list_len = len(cars_list)
 
-            self.auth_table.setRowCount(cars_list_len)
+                self.auth_table.setRowCount(cars_list_len)
 
-            for i in range(0, cars_list_len):
-                self.auth_table.insertRow(i)
-                
-                self.auth_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]["license_plate"])))
-                self.auth_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_start_date"])))
-                self.auth_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_end_date"])))
+                for i in range(0, cars_list_len):
+                    self.auth_table.insertRow(i)
+                    
+                    self.auth_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]["license_plate"])))
+                    self.auth_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_start_date"])))
+                    self.auth_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_end_date"])))
 
-                delete_button = QPushButton("Delete")
-                delete_button.clicked.connect(lambda _, row=i: self.delete_auth_car(row))
+                    delete_button = QPushButton("Delete")
+                    delete_button.clicked.connect(lambda _, row=i: self.delete_auth_car(row))
 
-                self.auth_table.setCellWidget(i, 3, delete_button)
+                    self.auth_table.setCellWidget(i, 3, delete_button)
+        else:
+            self.auth_table.hide()
+            self.not_connected_2.show()
 
     def delete_auth_car(self, row):
         license_plate = self.auth_table.item(row, 0).text()
 
-        if wtd.delete_authorization(license_plate):
+        if wtd.delete_authorization(self.database_address, license_plate):
             self.auth_table.removeRow(row)
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
@@ -294,10 +385,72 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.on_switch()
         self.content.setCurrentWidget(self.analitics_page)
 
+
+############################ GPIO PAGE ############################
+    def on_save_input_button(self, input_index):
+        input_types = {
+            1: self.input1_type,
+            2: self.input2_type,
+            3: self.input3_type,
+            4: self.input4_type,
+            5: self.input5_type,
+            6: self.input6_type
+        }
+
+        input_settings = st.settings.get("inputs", [" - "] * 6)
+        input_settings[input_index - 1] = input_types.get(input_index).currentText()
+
+        st.settings["inputs"] = input_settings
+        with open("settings/settings.json", 'w') as f:
+            json.dump(st.settings, f, indent=4)
+
+        if change_settings(module_settings) == True:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Settings")
+            msg_box.setText("Settings loaded to module successfully!")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+        else:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Delete")
+            msg_box.setText("Failed to load settings to the module.")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+
+    def on_save_output_button(self, output_index):
+        output_types = {
+            1: self.input1_type,
+            2: self.input2_type,
+            3: self.input3_type,
+            4: self.input4_type,
+            5: self.input5_type,
+            6: self.input6_type
+        }
+
+        output_settings = st.settings.get("inputs", [" - "] * 6)
+        output_settings[output_index - 1] = output_types.get(output_index).currentText()
+
+        st.settings["outputs"] = output_settings
+        with open("settings/settings.json", 'w') as f:
+            json.dump(st.settings, f, indent=4)
+        
+
+    def display_gpio_page(self): 
+        self.on_switch()
+        self.content.setCurrentWidget(self.gpio_page)
+        self.input1_button.clicked.connect(partial(self.on_save_input_button, 1))
+        self.input2_button.clicked.connect(partial(self.on_save_input_button, 2))
+        self.input3_button.clicked.connect(partial(self.on_save_input_button, 3))
+        self.input4_button.clicked.connect(partial(self.on_save_input_button, 4))
+        self.input5_button.clicked.connect(partial(self.on_save_input_button, 5))
+        self.input6_button.clicked.connect(partial(self.on_save_input_button, 6))
+
 ############################ SETTINGS #############################
 
     def update_settings(self):
-        management_settings = self.settings.get("management_settings", {})
+        management_settings = st.settings.get("management_settings", {})
 
         entrance_mode = management_settings.get("entrance_mode", "anyone")
         if entrance_mode == "anyone":
@@ -316,7 +469,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         fee_per_hour_val = management_settings.get("fee_per_hour", 0.0)
         self.fee_per_hour_input.setValue(fee_per_hour_val)
 
-        connection_settings = self.settings.get("connection_settings", {})
+        connection_settings = st.settings.get("connection_settings", {})
         
         video_ip = connection_settings.get("video", {}).get("ip", "0.0.0.0")
         video_port = connection_settings.get("video", {}).get("port", 0)
@@ -328,7 +481,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.database_ip.setText(database_ip)
         self.database_port.setText(str(database_port))
 
-        recognition_settings = self.settings.get("recognition_settings", {})
+        recognition_settings = st.settings.get("recognition_settings", {})
         recognition_confidence = recognition_settings.get("recognition_confidence", 50)
         detection_interval = recognition_settings.get("detection_interval", 1.5)
         recognition_model = recognition_settings.get("recognition_model", "best.pt")
@@ -348,7 +501,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.conf_box.setValue(recognition_confidence)
         self.detection_interval.setValue(fee_per_hour_val)
 
-        car_park_info_settings = self.settings.get("car_park_info_settings", {})
+        car_park_info_settings = st.settings.get("car_park_info_settings", {})
         start_time = car_park_info_settings.get("opening_hour", "08:00")
         close_time = car_park_info_settings.get("closing_hour", "20:00")
         self.openup_time.setTime(QTime.fromString(start_time, "HH:mm:ss"))
@@ -401,13 +554,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         car_park_info_settings["closing_hour"] = self.close_time.time().toString("HH:mm:ss")
         car_park_info_settings["total_capacity"] = self.capacity.value()
 
-        self.settings["management_settings"] = management_settings
-        self.settings["connection_settings"] = connection_settings
-        self.settings["recognition_settings"] = recognition_settings
-        self.settings["car_park_info_settings"] = car_park_info_settings
+        st.settings["management_settings"] = management_settings
+        st.settings["connection_settings"] = connection_settings
+        st.settings["recognition_settings"] = recognition_settings
+        st.settings["car_park_info_settings"] = car_park_info_settings
 
         with open("settings/settings.json", 'w') as f:
-            json.dump(self.settings, f, indent=4)
+            json.dump(st.settings, f, indent=4)
 
         module_settings = {
             "mode": management_settings["entrance_mode"],
@@ -418,32 +571,47 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             "region": recognition_settings["region_mode"],
             "total_capacity": car_park_info_settings["total_capacity"]
         }
+        
+        self.database_address = f'{st.settings["connection_settings"]["database"]["ip"]}:{st.settings["connection_settings"]["database"]["port"]}'
+        self.database_button.setText(self.database_address)
+        self.check_server()
+        time.sleep(0.15)
 
-        if change_settings(module_settings) == True:
-            msg_box = QtWidgets.QMessageBox()
-            msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Settings")
-            msg_box.setText("Settings loaded to module successfully!")
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            msg_box.exec_()
+        if self.database_connected:
+            if change_settings(self.database_address, module_settings) == True:
+                self.synchronization_warning.hide()
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setIcon(QtWidgets.QMessageBox.Information)
+                msg_box.setWindowTitle("Settings")
+                msg_box.setText("Settings loaded to module successfully!")
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                msg_box.exec_()
+            else:
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setIcon(QtWidgets.QMessageBox.Information)
+                msg_box.setWindowTitle("Delete")
+                msg_box.setText("Failed to load settings to the module.")
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                msg_box.exec_()
         else:
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Delete")
-            msg_box.setText("Failed to load settings to the module.")
+            msg_box.setWindowTitle("Settings")
+            msg_box.setText("Settings submited successfully!")
             msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msg_box.exec_()
+            self.synchronization_warning.show()
+        time.sleep(1)
 
-        
-        
+            
     def on_reset_button(self):
         with open('settings/default_settings.json', 'r') as f:
             default_settings = json.load(f)
 
-        self.settings = default_settings
+        st.settings = default_settings
 
         with open('settings/settings.json', 'w') as f:
-            json.dump(self.settings, f, indent=4)
+            json.dump(st.settings, f, indent=4)
 
         self.update_settings()
 

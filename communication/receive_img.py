@@ -13,7 +13,7 @@ def error_img(description):
 
     cv2.imwrite("communication/detected.png", none_img)
 
-def receive_image():
+def receive_image(server_address):
     url = f"http://{server_address}/send_detection_img"
     response = requests.get(url, stream=True)
     if response.status_code == 200:

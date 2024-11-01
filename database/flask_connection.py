@@ -1,9 +1,9 @@
 import requests
 from datetime import date
 
-server_address = "192.168.8.118:5000"
+#server_address = "192.168.8.118:5000"
 
-def get_cars():
+def get_cars(server_address):
     url = f"http://{server_address}/get_cars"
     response = requests.get(url)
 
@@ -14,7 +14,7 @@ def get_cars():
         error_message = response.json()["message"]
         return [False, error_message]
 
-def get_auth_cars():
+def get_auth_cars(server_address):
     url = f"http://{server_address}/get_authorized_cars"
     response = requests.get(url)
 
