@@ -3,6 +3,19 @@ from datetime import date
 
 #server_address = "192.168.8.118:5000"
 
+def delete_car(server_address, license_plate):
+    delete = {
+        "license_plate": f"{license_plate}"
+    }
+
+    url = f"http://{server_address}/delete_car"
+    response = requests.post(url, json=delete)
+
+    if response.status_code == 201:
+        return True
+    else:
+        return False
+
 def insert_authorization(server_address, license_plate, start_date, end_date):
     authorization = {
         "license_plate": f"{license_plate}",

@@ -266,13 +266,37 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 for i in range(0, cars_list_len):
                     self.CarsTable.insertRow(i)
-                    self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['carID'])))
-                    self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
+                    self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
+                    self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
                     self.CarsTable.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
-                    self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
+                    self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem("5 zl"))
+
+                    exit_button = QPushButton("Delete")
+                    exit_button.clicked.connect(lambda _, row=i: self.exit_car(row))
+
+                    self.CarsTable.setCellWidget(i, 4, exit_button)
         else:
             self.CarsTable.hide()
             self.not_connected_1.show()
+    
+    def exit_car(self, row):
+        license_plate = self.CarsTable.item(row, 0).text()
+
+        if wtd.delete_car(self.database_address, license_plate):
+            self.auth_table.removeRow(row)
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Exit")
+            msg_box.setText("Car took off")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+        else:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Exit")
+            msg_box.setText("Car is stucked at your parking lot")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
 
 
     def display_current_state_page(self):
