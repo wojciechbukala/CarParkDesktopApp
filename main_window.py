@@ -6,10 +6,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from main_window_ui import Ui_MainWindow
-from communication.receive_video import ReceiveVideo
-from communication.receive_img import error_img, receive_image
-from communication.receive_data import receive_detection_data
-from communication.send_settings import change_settings
+from database.receive_video import ReceiveVideo
 import database.read_database as rd
 import database.write_to_database as wtd
 from datetime import datetime
@@ -32,13 +29,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.database_button.clicked.connect(self.display_settings_page)
         self.settings_button.clicked.connect(self.display_settings_page)
         self.gpio_button.clicked.connect(self.display_gpio_page)
+        self.refresh_button.clicked.connect(self.handle_refresh)
         self.streaming_active = False
         self.receiving_license_plate_active = False
         self.receiving_lp_data_active = False
         
         self.auth_submit_connected = False
 
-        #self.settings = self.read_settings()
         st.read_settings()
         self.database_address = f'{st.settings["connection_settings"]["database"]["ip"]}:{st.settings["connection_settings"]["database"]["port"]}'
 
@@ -119,11 +116,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.synchronization_warning.hide()
 
-    # def read_settings(self):
-    #     with open('settings/settings.json', 'r') as f:
-    #         settings = json.load(f)
-    #     return settings
-
     def check_server(self):
         def check():
             try:
@@ -188,7 +180,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def update_image_lp(self):
         if self.database_connected:
-            if receive_image(self.database_address):
+            if rd.receive_image(self.database_address):
                 if os.path.exists("communication/detected.png"):
                     frame = cv2.imread("communication/detected.png")
                     if frame is not None and frame.size > 0:
@@ -204,7 +196,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def update_data(self):
         if self.database_connected:
-            detection_data = receive_detection_data(self.database_address)
+            detection_data = rd.receive_detection_data(self.database_address)
             car_exist_error = False
             capacity_full_error = False
             if detection_data[0] == True:
@@ -264,6 +256,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
 ############################ CURRENT STATE #############################
 
+    def update_widgets(self):
+        if self.database_connected:
+            global_vars = rd.read_global_vars(self.database_address)
+            if global_vars[0]:
+                cars_today = global_vars[1].get("cars_today", "Error")
+                currently_parked = global_vars[1].get("currently_parked", "Error")
+                self.value1.setText(f"{cars_today}")
+                self.value2.setText(f"{currently_parked}")
+                total_capacity = st.settings.get("car_park_info_settings", {}).get("total_capacity", 0)
+                self.value3.setText(f"{round((currently_parked / total_capacity), 2)}%")
+            else:
+                self.value1.setText("No data")
+                self.value2.setText("No data")
+                self.value3.setText("No data")
+        else:
+            self.value1.setText("Server error")
+            self.value2.setText("Server error")
+            self.value3.setText("Server error")
+
+
     def update_table(self):
         if self.database_connected:
             self.not_connected_1.hide()
@@ -317,6 +329,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.on_switch()
         self.content.setCurrentWidget(self.current_state_page)
         self.update_table()
+        self.update_widgets()
 
 ############################ AUTH #############################
 
@@ -442,7 +455,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         with open("settings/settings.json", 'w') as f:
             json.dump(st.settings, f, indent=4)
 
-        if change_settings(module_settings) == True:
+        if wtd.change_settings(module_settings) == True:
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
             msg_box.setWindowTitle("Settings")
@@ -620,7 +633,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         time.sleep(0.15)
 
         if self.database_connected:
-            if change_settings(self.database_address, module_settings) == True:
+            if wtd.change_settings(self.database_address, module_settings) == True:
                 self.synchronization_warning.hide()
                 msg_box = QtWidgets.QMessageBox()
                 msg_box.setIcon(QtWidgets.QMessageBox.Information)
@@ -664,6 +677,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.update_settings()
         self.reset_button.clicked.connect(self.on_reset_button)
         self.submit_button.clicked.connect(self.on_submit_button)
+
+    def handle_refresh(self):
+        if self.content.currentWidget() == self.home_page:
+            pass
+        if self.content.currentWidget() == self.current_state_page:
+            self.update_widgets()
+            self.update_table()
+
+        if self.content.currentWidget() == self.analitics_page:
+            pass
+        if self.content.currentWidget() == self.gpio_page:
+            pass
+        if self.content.currentWidget() == self.settings_page:
+            pass
+        if self.content.currentWidget() == self.auth_list_page:
 
     
     def closeEvent(self, event):
