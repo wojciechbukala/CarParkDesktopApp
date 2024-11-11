@@ -194,7 +194,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     if frame is not None and frame.size > 0:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-                        self.l_plate_img.setPixmap(QPixmap.fromImage(img))
+                        img_scaled = img.scaled(260, 65, QtCore.Qt.IgnoreAspectRatio)
+                        self.l_plate_img.setPixmap(QPixmap.fromImage(img_scaled))
         else:
             self.l_plate_img.setStyleSheet("background-color: #d4e6f9;\n"
 "color: #000000;\n"
@@ -204,23 +205,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def update_data(self):
         if self.database_connected:
             detection_data = receive_detection_data(self.database_address)
+            car_exist_error = False
+            capacity_full_error = False
             if detection_data[0] == True:
                 license_plate = detection_data[1].get("license_plate", "Not detected").strip()
                 acceptance = detection_data[1].get("acceptance", False)
                 confidence = detection_data[1].get("confidence", 0)
                 confidence = round(float(confidence), 2)
                 model = detection_data[1].get("model", "model.pt")
-                capacity_left = detection_data[1].get("capacity_left", 0)
+                capacity_left = detection_data[1].get("capacity_left", 1000)
+                car_exist_error = detection_data[1].get("already_exists", False)
+                capacity_full_error = detection_data[1].get("capacity_full", False)
 
                 self.l_plate_text.setText(license_plate)
                 if acceptance:
+                    self.descript.setText("")
                     self.status_label.setStyleSheet("background-color: #3fb618;\n"
     "font: 12pt \"Sans Serif Collection\";")
                     self.status_label.setText("Access")
                 else:
+                    self.descript.setText("")
                     self.status_label.setStyleSheet("background-color: #ff0039;\n"
     "font: 12pt \"Sans Serif Collection\";")
                     self.status_label.setText("Denied access")
+                    if car_exist_error:
+                        self.descript.setText("This car is already parked!")
+                    if capacity_full_error:
+                        self.descript.setText("Parking is fully occupied!")
 
                 self.conf_label.show()
                 self.conf_label.setText(f"   Model confidence: {confidence}")
@@ -257,6 +268,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.database_connected:
             self.not_connected_1.hide()
             self.CarsTable.show()
+            self.CarsTable.setRowCount(0)
             records_exist, cars_list = rd.get_cars(self.database_address)
             if records_exist == True:
                 cars_list_len = len(cars_list)
@@ -283,6 +295,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         license_plate = self.CarsTable.item(row, 0).text()
 
         if wtd.delete_car(self.database_address, license_plate):
+            self.update_table()
+
             self.auth_table.removeRow(row)
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
@@ -507,7 +521,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         recognition_settings = st.settings.get("recognition_settings", {})
         recognition_confidence = recognition_settings.get("recognition_confidence", 50)
-        detection_interval = recognition_settings.get("detection_interval", 1.5)
+        detection_interval = recognition_settings.get("detection_interval", 4)
         recognition_model = recognition_settings.get("recognition_model", "best.pt")
         
         index = self.recognition_model.findText(recognition_model)
@@ -535,6 +549,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.capacity.setValue(capacity)
 
     def on_submit_button(self):
+        if hasattr(self, "_is_processing") and self._is_processing:
+            return  # Prevents duplicate calls
+        self._is_processing = True  # Set processing flag
+
         management_settings = {}
 
         if self.anyone.isChecked():
@@ -626,6 +644,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             msg_box.exec_()
             self.synchronization_warning.show()
         time.sleep(1)
+        self._is_processing = False
 
             
     def on_reset_button(self):

@@ -10,7 +10,6 @@ def receive_detection_data(server_address):
 
     if response.status_code == 200:
         data = response.json()
-        print(data)
         return [True, data]
     else:
         return [False, "error"]
