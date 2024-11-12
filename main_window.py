@@ -438,6 +438,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
 ############################ GPIO PAGE ############################
+    def update_gpio_state(self):
+        with open('settings/gpio.json', 'r') as f:
+            gpio = json.load(f)
+
+        self.input1_type.setCurrentText(gpio["inputs"][0])
+        self.input2_type.setCurrentText(gpio["inputs"][1])
+        self.input3_type.setCurrentText(gpio["inputs"][2])
+        self.input4_type.setCurrentText(gpio["inputs"][3])
+        self.input5_type.setCurrentText(gpio["inputs"][4])
+        self.input6_type.setCurrentText(gpio["inputs"][5])
+
+
+        self.output1_type.setCurrentText(gpio["outputs"][0])
+        self.output2_type.setCurrentText(gpio["outputs"][1])
+        self.output3_type.setCurrentText(gpio["outputs"][2])
+        self.output4_type.setCurrentText(gpio["outputs"][3])
+        self.output5_type.setCurrentText(gpio["outputs"][4])
+        self.output6_type.setCurrentText(gpio["outputs"][5])
+            
+
     def on_save_input_button(self, input_index):
         input_types = {
             1: self.input1_type,
@@ -448,14 +468,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             6: self.input6_type
         }
 
-        input_settings = st.settings.get("inputs", [" - "] * 6)
-        input_settings[input_index - 1] = input_types.get(input_index).currentText()
+        with open('settings/gpio.json', 'r') as f:
+            gpio = json.load(f)
 
-        st.settings["inputs"] = input_settings
-        with open("settings/settings.json", 'w') as f:
-            json.dump(st.settings, f, indent=4)
+        gpio_input= gpio.get("inputs", [" - "] * 6)
+        gpio_input[input_index - 1] = input_types.get(input_index).currentText()
 
-        if wtd.change_settings(module_settings) == True:
+        gpio["inputs"] = gpio_input
+        with open("settings/gpio.json", 'w') as f:
+            json.dump(gpio, f, indent=4)
+
+        if wtd.change_gpio(self.database_address ,gpio) == True:
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
             msg_box.setWindowTitle("Settings")
@@ -472,31 +495,56 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def on_save_output_button(self, output_index):
         output_types = {
-            1: self.input1_type,
-            2: self.input2_type,
-            3: self.input3_type,
-            4: self.input4_type,
-            5: self.input5_type,
-            6: self.input6_type
+            1: self.output1_type,
+            2: self.output2_type,
+            3: self.output3_type,
+            4: self.output4_type,
+            5: self.output5_type,
+            6: self.output6_type
         }
 
-        output_settings = st.settings.get("inputs", [" - "] * 6)
-        output_settings[output_index - 1] = output_types.get(output_index).currentText()
+        with open('settings/gpio.json', 'r') as f:
+            gpio = json.load(f)
 
-        st.settings["outputs"] = output_settings
-        with open("settings/settings.json", 'w') as f:
-            json.dump(st.settings, f, indent=4)
+        gpio_output = gpio.get("outputs", [" - "] * 6)
+        gpio_output[output_index - 1] = output_types.get(output_index).currentText()
+
+        gpio["outputs"] = gpio_output
+        with open("settings/gpio.json", 'w') as f:
+            json.dump(gpio, f, indent=4)
+
+        if wtd.change_gpio(self.database_address ,gpio) == True:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Settings")
+            msg_box.setText("Settings loaded to module successfully!")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+        else:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Delete")
+            msg_box.setText("Failed to load settings to the module.")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
         
 
     def display_gpio_page(self): 
         self.on_switch()
         self.content.setCurrentWidget(self.gpio_page)
+        self.update_gpio_state()
         self.input1_button.clicked.connect(partial(self.on_save_input_button, 1))
         self.input2_button.clicked.connect(partial(self.on_save_input_button, 2))
         self.input3_button.clicked.connect(partial(self.on_save_input_button, 3))
         self.input4_button.clicked.connect(partial(self.on_save_input_button, 4))
         self.input5_button.clicked.connect(partial(self.on_save_input_button, 5))
         self.input6_button.clicked.connect(partial(self.on_save_input_button, 6))
+        self.output1_button.clicked.connect(partial(self.on_save_output_button, 1))
+        self.output2_button.clicked.connect(partial(self.on_save_output_button, 2))
+        self.output3_button.clicked.connect(partial(self.on_save_output_button, 3))
+        self.output4_button.clicked.connect(partial(self.on_save_output_button, 4))
+        self.output5_button.clicked.connect(partial(self.on_save_output_button, 5))
+        self.output6_button.clicked.connect(partial(self.on_save_output_button, 6))
 
 ############################ SETTINGS #############################
 
@@ -692,6 +740,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.content.currentWidget() == self.settings_page:
             pass
         if self.content.currentWidget() == self.auth_list_page:
+            pass
 
     
     def closeEvent(self, event):

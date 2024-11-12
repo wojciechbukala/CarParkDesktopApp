@@ -1172,10 +1172,10 @@ class Ui_MainWindow(object):
         self.output5_type.setObjectName("output5_type")
         self.horizontalLayout_30.addWidget(self.output5_type)
         self.verticalLayout_37.addWidget(self.widget_45)
-        self.output5_type_2 = QtWidgets.QPushButton(self.widget_31)
-        self.output5_type_2.setStyleSheet("background-color:#7d8082;")
-        self.output5_type_2.setObjectName("output5_type_2")
-        self.verticalLayout_37.addWidget(self.output5_type_2)
+        self.output5_button = QtWidgets.QPushButton(self.widget_31)
+        self.output5_button.setStyleSheet("background-color:#7d8082;")
+        self.output5_button.setObjectName("output5_button")
+        self.verticalLayout_37.addWidget(self.output5_button)
         self.gridLayout_7.addWidget(self.widget_31, 1, 1, 1, 1)
         self.widget_29 = QtWidgets.QWidget(self.widget_35)
         self.widget_29.setStyleSheet("background-color: #d7d8d8;")
@@ -1716,7 +1716,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
-        self.content.setCurrentIndex(1)
+        self.content.setCurrentIndex(3)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -1793,7 +1793,7 @@ class Ui_MainWindow(object):
         self.output1_button.setText(_translate("MainWindow", "Save"))
         self.label_49.setText(_translate("MainWindow", "Output 5"))
         self.label_61.setText(_translate("MainWindow", "Type:"))
-        self.output5_type_2.setText(_translate("MainWindow", "Save"))
+        self.output5_button.setText(_translate("MainWindow", "Save"))
         self.label_47.setText(_translate("MainWindow", "Output 3"))
         self.label_59.setText(_translate("MainWindow", "Type:"))
         self.output3_button.setText(_translate("MainWindow", "Save"))

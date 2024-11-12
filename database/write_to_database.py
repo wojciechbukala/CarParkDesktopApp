@@ -53,9 +53,9 @@ def change_settings(server_address, settings_dict):
     else:
         return False
 
-def change_inputs(server_address, inputs):
-    url = f"http://{server_address}/change_inputs"
-    response = requests.post(url, json=inputs)
+def change_gpio(server_address, gpio):
+    url = f"http://{server_address}/load_gpio"
+    response = requests.post(url, json=gpio)
 
     if response.status_code == 200:
         return True
