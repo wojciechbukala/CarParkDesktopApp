@@ -54,65 +54,23 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.recognition_model.addItem("best.pt")
         self.recognition_model.addItem("other.pt")
 
-        self.input1_type.addItem(" - ")
-        self.input1_type.addItem("switch-on")
-        self.input1_type.addItem("switch-off")
-        self.input1_type.addItem("binary gate state")
-
-        self.input2_type.addItem(" - ")
-        self.input2_type.addItem("switch-on")
-        self.input2_type.addItem("switch-off")
-        self.input2_type.addItem("binary gate state")
-
-        self.input3_type.addItem(" - ")
-        self.input3_type.addItem("switch-on")
-        self.input3_type.addItem("switch-off")
-        self.input3_type.addItem("binary gate state")
-
-        self.input4_type.addItem(" - ")
-        self.input4_type.addItem("switch-on")
-        self.input4_type.addItem("switch-off")
-        self.input4_type.addItem("binary gate state")
-
-        self.input5_type.addItem(" - ")
-        self.input5_type.addItem("switch-on")
-        self.input5_type.addItem("switch-off")
-        self.input5_type.addItem("binary gate state")
-
-        self.input6_type.addItem(" - ")
-        self.input6_type.addItem("switch-on")
-        self.input6_type.addItem("switch-off")
-        self.input6_type.addItem("binary gate state")
-
         self.output1_type.addItem(" - ")
-        self.output1_type.addItem("gate open")
-        self.output1_type.addItem("gate close")
-        self.output1_type.addItem("gate switch state")
+        self.output1_type.addItem("recognition: impulse")
+        self.output1_type.addItem("recognition: high for 10 seconds")
+        self.output1_type.addItem("car passed input: impulse")
+        self.output1_type.addItem("recog & car passed input: impulse")
 
         self.output2_type.addItem(" - ")
-        self.output2_type.addItem("gate open")
-        self.output2_type.addItem("gate close")
-        self.output2_type.addItem("gate switch state")
+        self.output2_type.addItem("recognition: impulse")
+        self.output2_type.addItem("recognition: high for 10 seconds")
+        self.output2_type.addItem("car passed input: impulse")
+        self.output2_type.addItem("recog & car passed input: impulse")
                 
         self.output3_type.addItem(" - ")
-        self.output3_type.addItem("gate open")
-        self.output3_type.addItem("gate close")
-        self.output3_type.addItem("gate switch state")
-                
-        self.output4_type.addItem(" - ")
-        self.output4_type.addItem("gate open")
-        self.output4_type.addItem("gate close")
-        self.output4_type.addItem("gate switch state")
-                
-        self.output5_type.addItem(" - ")
-        self.output5_type.addItem("gate open")
-        self.output5_type.addItem("gate close")
-        self.output5_type.addItem("gate switch state")
-
-        self.output6_type.addItem(" - ")
-        self.output6_type.addItem("gate open")
-        self.output6_type.addItem("gate close")
-        self.output6_type.addItem("gate switch state")
+        self.output3_type.addItem("recognition: impulse")
+        self.output3_type.addItem("recognition: high for 10 seconds")
+        self.output3_type.addItem("car passed input: impulse")
+        self.output3_type.addItem("recog & car passed input: impulse")
 
         self.synchronization_warning.hide()
 
@@ -126,6 +84,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             except (requests.ConnectionError, requests.Timeout):
                 self.database_connected = False
                 self.database_button.setStyleSheet("background-color: #ff0039;\n")
+            # if self.database_connected:
+            #     global_vars = rd.read_global_vars(self.database_address)
+            #     if global_vars[0]:
+            #         gate_state = global_vars[1].get("gate_state", "Error")
+            #         if gate_state == "Error":
+            #             self.gate_state_lbl.setText("  GATE: NO DATA  ")
+            #         elif gate_state:
+            #             self.gate_state_lbl.setText("  GATE: OPEN  ")
+            #             self.gate_state_lbl.setStyleSheet("background-color: #3fb618;\n")
+            #         else:
+            #             self.gate_state_lbl.setText("  GATE: CLOSED  ")
+            #             self.gate_state_lbl.setStyleSheet("background-color: #ff0039;\n")
         threading.Thread(target=check, daemon=True).start()
 
     # reciving video stream
@@ -142,7 +112,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def InitReceivingDataThread(self):
         self.receive_data = QTimer()
         self.receive_data.timeout.connect(self.update_data)
-        self.receive_data.start(1000)
+        self.receive_data.start(2000)
 
     #on switch page methods
     def stop_streaming(self):
@@ -181,8 +151,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def update_image_lp(self):
         if self.database_connected:
             if rd.receive_image(self.database_address):
-                if os.path.exists("communication/detected.png"):
-                    frame = cv2.imread("communication/detected.png")
+                if os.path.exists("database/detected.png"):
+                    frame = cv2.imread("database/detected.png")
                     if frame is not None and frame.size > 0:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         img = QImage(frame.data, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
@@ -205,7 +175,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 confidence = detection_data[1].get("confidence", 0)
                 confidence = round(float(confidence), 2)
                 model = detection_data[1].get("model", "model.pt")
-                capacity_left = detection_data[1].get("capacity_left", 1000)
+                capacity_occupied = detection_data[1].get("capacity_occupied", 0)
                 car_exist_error = detection_data[1].get("already_exists", False)
                 capacity_full_error = detection_data[1].get("capacity_full", False)
 
@@ -230,7 +200,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.model_label.show()
                 self.model_label.setText(f"   Used model: {model}")
                 self.capacity_label.show()
-                self.capacity_label.setText(f"   Capacity left: {capacity_left}")
+                self.capacity_label.setText(f"   Capacity occupied: {capacity_occupied}")
         else:
             self.l_plate_text.setText("Server not connected")
             self.status_label.setStyleSheet("background-color: #d4e6f9;\n"
@@ -261,7 +231,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             global_vars = rd.read_global_vars(self.database_address)
             if global_vars[0]:
                 cars_today = global_vars[1].get("cars_today", "Error")
-                currently_parked = global_vars[1].get("currently_parked", "Error")
+                currently_parked = self.CarsTable.rowCount()//2
                 self.value1.setText(f"{cars_today}")
                 self.value2.setText(f"{currently_parked}")
                 total_capacity = st.settings.get("car_park_info_settings", {}).get("total_capacity", 0)
@@ -308,6 +278,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if wtd.delete_car(self.database_address, license_plate):
             self.update_table()
+            currently_parked = self.CarsTable.rowCount()//2
+            self.value2.setText(f"{currently_parked}")
 
             self.auth_table.removeRow(row)
             msg_box = QtWidgets.QMessageBox()
@@ -442,65 +414,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         with open('settings/gpio.json', 'r') as f:
             gpio = json.load(f)
 
-        self.input1_type.setCurrentText(gpio["inputs"][0])
-        self.input2_type.setCurrentText(gpio["inputs"][1])
-        self.input3_type.setCurrentText(gpio["inputs"][2])
-        self.input4_type.setCurrentText(gpio["inputs"][3])
-        self.input5_type.setCurrentText(gpio["inputs"][4])
-        self.input6_type.setCurrentText(gpio["inputs"][5])
-
-
         self.output1_type.setCurrentText(gpio["outputs"][0])
         self.output2_type.setCurrentText(gpio["outputs"][1])
         self.output3_type.setCurrentText(gpio["outputs"][2])
-        self.output4_type.setCurrentText(gpio["outputs"][3])
-        self.output5_type.setCurrentText(gpio["outputs"][4])
-        self.output6_type.setCurrentText(gpio["outputs"][5])
-            
 
-    def on_save_input_button(self, input_index):
-        input_types = {
-            1: self.input1_type,
-            2: self.input2_type,
-            3: self.input3_type,
-            4: self.input4_type,
-            5: self.input5_type,
-            6: self.input6_type
-        }
-
-        with open('settings/gpio.json', 'r') as f:
-            gpio = json.load(f)
-
-        gpio_input= gpio.get("inputs", [" - "] * 6)
-        gpio_input[input_index - 1] = input_types.get(input_index).currentText()
-
-        gpio["inputs"] = gpio_input
-        with open("settings/gpio.json", 'w') as f:
-            json.dump(gpio, f, indent=4)
-
-        if wtd.change_gpio(self.database_address ,gpio) == True:
-            msg_box = QtWidgets.QMessageBox()
-            msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Settings")
-            msg_box.setText("Settings loaded to module successfully!")
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            msg_box.exec_()
-        else:
-            msg_box = QtWidgets.QMessageBox()
-            msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Delete")
-            msg_box.setText("Failed to load settings to the module.")
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            msg_box.exec_()
 
     def on_save_output_button(self, output_index):
         output_types = {
             1: self.output1_type,
             2: self.output2_type,
             3: self.output3_type,
-            4: self.output4_type,
-            5: self.output5_type,
-            6: self.output6_type
         }
 
         with open('settings/gpio.json', 'r') as f:
@@ -513,38 +436,36 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         with open("settings/gpio.json", 'w') as f:
             json.dump(gpio, f, indent=4)
 
-        if wtd.change_gpio(self.database_address ,gpio) == True:
-            msg_box = QtWidgets.QMessageBox()
-            msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Settings")
-            msg_box.setText("Settings loaded to module successfully!")
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            msg_box.exec_()
+        if self.database_connected:
+            if wtd.change_gpio(self.database_address ,gpio) == True:
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setIcon(QtWidgets.QMessageBox.Information)
+                msg_box.setWindowTitle("GPIO")
+                msg_box.setText("Output loaded to module successfully!")
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                msg_box.exec_()
+            else:
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setIcon(QtWidgets.QMessageBox.Information)
+                msg_box.setWindowTitle("GPIO")
+                msg_box.setText("Failed to load output to the module.")
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                msg_box.exec_()
         else:
             msg_box = QtWidgets.QMessageBox()
             msg_box.setIcon(QtWidgets.QMessageBox.Information)
-            msg_box.setWindowTitle("Delete")
-            msg_box.setText("Failed to load settings to the module.")
+            msg_box.setWindowTitle("GPIO")
+            msg_box.setText("Module not connected, output saved localy.")
             msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msg_box.exec_()
-        
 
     def display_gpio_page(self): 
         self.on_switch()
         self.content.setCurrentWidget(self.gpio_page)
         self.update_gpio_state()
-        self.input1_button.clicked.connect(partial(self.on_save_input_button, 1))
-        self.input2_button.clicked.connect(partial(self.on_save_input_button, 2))
-        self.input3_button.clicked.connect(partial(self.on_save_input_button, 3))
-        self.input4_button.clicked.connect(partial(self.on_save_input_button, 4))
-        self.input5_button.clicked.connect(partial(self.on_save_input_button, 5))
-        self.input6_button.clicked.connect(partial(self.on_save_input_button, 6))
         self.output1_button.clicked.connect(partial(self.on_save_output_button, 1))
         self.output2_button.clicked.connect(partial(self.on_save_output_button, 2))
         self.output3_button.clicked.connect(partial(self.on_save_output_button, 3))
-        self.output4_button.clicked.connect(partial(self.on_save_output_button, 4))
-        self.output5_button.clicked.connect(partial(self.on_save_output_button, 5))
-        self.output6_button.clicked.connect(partial(self.on_save_output_button, 6))
 
 ############################ SETTINGS #############################
 

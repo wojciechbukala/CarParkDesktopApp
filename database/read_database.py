@@ -64,5 +64,14 @@ def read_global_vars(server_address):
     else:
         return [False, "error"]
 
+def get_gate_state(server_address):
+    url = f"http://{server_address}/gate_state"
+    response = requests.get(url, stream=True)
+    if response.status_code == 200:
+        data = response.json()
+        return [True, data]
+    else:
+        return [False, "error"]
+
 if __name__ == '__main__':
     print(get_cars())

@@ -62,6 +62,15 @@ def change_gpio(server_address, gpio):
     else:
         return False
 
+def change_global_vars(server_address, gpio):
+    url = f"http://{serve_address}/change_global_vars"
+    response = requests.post(url, json=global_vars)
+
+    
+    if response.status_code == 200:
+        return True
+    else:
+        return False
 
 if __name__ == '__main__':
     delete_authorization("ZS12345")
