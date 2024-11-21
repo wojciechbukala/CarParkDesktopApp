@@ -14,6 +14,17 @@ def get_cars(server_address):
         error_message = response.json()["message"]
         return [False, error_message]
 
+def get_history(server_address):
+    url = f"http://{server_address}/get_history"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        cars = response.json()
+        return [True, cars]
+    else:
+        error_message = response.json()["message"]
+        return [False, error_message]
+
 def get_auth_cars(server_address):
     url = f"http://{server_address}/get_authorized_cars"
     response = requests.get(url)
@@ -66,6 +77,15 @@ def read_global_vars(server_address):
 
 def get_gate_state(server_address):
     url = f"http://{server_address}/gate_state"
+    response = requests.get(url, stream=True)
+    if response.status_code == 200:
+        data = response.json()
+        return [True, data]
+    else:
+        return [False, "error"]
+
+def get_cars_today(server_address):
+    url = f"http://{server_address}/get_cars_today"
     response = requests.get(url, stream=True)
     if response.status_code == 200:
         data = response.json()

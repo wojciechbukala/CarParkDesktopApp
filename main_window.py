@@ -25,7 +25,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.home_button.clicked.connect(self.display_home_page)
         self.current_state_button.clicked.connect(self.display_current_state_page)
         self.auth_list_button.clicked.connect(self.display_auth_list_page)
-        self.analitics_button.clicked.connect(self.display_analitics_page)
+        self.history_button.clicked.connect(self.display_history_page)
         self.database_button.clicked.connect(self.display_settings_page)
         self.settings_button.clicked.connect(self.display_settings_page)
         self.gpio_button.clicked.connect(self.display_gpio_page)
@@ -228,9 +228,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def update_widgets(self):
         if self.database_connected:
-            global_vars = rd.read_global_vars(self.database_address)
-            if global_vars[0]:
-                cars_today = global_vars[1].get("cars_today", "Error")
+            #global_vars = rd.read_global_vars(self.database_address)
+            if rd.get_cars_today(self.database_address)[0]:
+                cars_today = rd.get_cars_today(self.database_address)[1].get("cars_today")
                 currently_parked = self.CarsTable.rowCount()//2
                 self.value1.setText(f"{cars_today}")
                 self.value2.setText(f"{currently_parked}")
@@ -254,18 +254,31 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             records_exist, cars_list = rd.get_cars(self.database_address)
             if records_exist == True:
                 cars_list_len = len(cars_list)
-                print(cars_list_len)
+                current_time = datetime.utcnow()
 
                 self.CarsTable.setRowCount(cars_list_len)
 
                 for i in range(0, cars_list_len):
                     self.CarsTable.insertRow(i)
-                    self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
-                    self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
-                    self.CarsTable.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]['entry_time'])))
-                    self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem("5 zl"))
+                    self.CarsTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]['carID'])))
+                    self.CarsTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]['license_plate'])))
+                    date_obj = datetime.strptime(str(cars_list[i]['entry_time']), "%a, %d %b %Y %H:%M:%S GMT")
+                    duration = current_time - date_obj
+                    total_seconds = abs(duration.total_seconds())
+                    hours = int(total_seconds // 3600)
+                    minutes = 60 - int((total_seconds % 3600) // 60)
+                    seconds = 60 - int(total_seconds % 60)
+                    self.CarsTable.setItem(i, 2, QtWidgets.QTableWidgetItem(f"{hours:02d}:{minutes:02d}:{seconds:02d}"))
+                                        
+                    if st.settings["management_settings"]["payment_mode"] == "fee_per_hour":
+                        fee = int(st.settings["management_settings"]["fee_per_hour"]) * (hours+1)
+                    elif st.settings["management_settings"]["payment_mode"] == "entrance_fee":
+                        fee = int(st.settings["management_settings"]["fee_per_hour"])
+                    else:
+                        fee = 0
+                    self.CarsTable.setItem(i, 3, QtWidgets.QTableWidgetItem(f"{fee}zl"))
 
-                    exit_button = QPushButton("Delete")
+                    exit_button = QPushButton("Exit")
                     exit_button.clicked.connect(lambda _, row=i: self.exit_car(row))
 
                     self.CarsTable.setCellWidget(i, 4, exit_button)
@@ -274,9 +287,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.not_connected_1.show()
     
     def exit_car(self, row):
-        license_plate = self.CarsTable.item(row, 0).text()
+        car_id = self.CarsTable.item(row, 0).text()
 
-        if wtd.delete_car(self.database_address, license_plate):
+        if wtd.delete_car(self.database_address, car_id):
             self.update_table()
             currently_parked = self.CarsTable.rowCount()//2
             self.value2.setText(f"{currently_parked}")
@@ -364,8 +377,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.auth_table.insertRow(i)
                     
                     self.auth_table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(cars_list[i]["license_plate"])))
-                    self.auth_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_start_date"])))
-                    self.auth_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(cars_list[i]["authorization_end_date"])))
+                    start_date_str = str(cars_list[i]["authorization_start_date"])
+                    start_date_obj = datetime.strptime(start_date_str, "%a, %d %b %Y %H:%M:%S GMT")
+                    formatted_start_date = start_date_obj.strftime("%d.%m.%Y")
+
+                    self.auth_table.setItem(i, 1, QtWidgets.QTableWidgetItem(formatted_start_date))
+
+                    end_date_str = str(cars_list[i]["authorization_end_date"])
+                    end_date_obj = datetime.strptime(end_date_str, "%a, %d %b %Y %H:%M:%S GMT")
+                    formatted_end_date = end_date_obj.strftime("%d.%m.%Y")
+                    self.auth_table.setItem(i, 2, QtWidgets.QTableWidgetItem(formatted_end_date))
 
                     delete_button = QPushButton("Delete")
                     delete_button.clicked.connect(lambda _, row=i: self.delete_auth_car(row))
@@ -403,10 +424,77 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.authSubmit.clicked.connect(self.on_auth_submit)
             self.auth_submit_connected = True
 
-############################ ANALITICS PAGE #######################
-    def display_analitics_page(self):
+############################ HISTORY PAGE #######################
+    def update_history_table(self):
+        if self.database_connected:
+            self.ServerNC_lbl.hide()
+            self.HistoryTable.show()
+            self.HistoryTable.setRowCount(0)
+            records_exist, history_list = rd.get_history(self.database_address)
+            if records_exist == True:
+                history_list_len = len(history_list)
+
+                self.HistoryTable.setRowCount(history_list_len)
+
+                for i in range(0, history_list_len):
+                    self.HistoryTable.insertRow(i)
+                    self.HistoryTable.setItem(i, 0, QtWidgets.QTableWidgetItem(str(history_list[i]['carID'])))
+                    self.HistoryTable.setItem(i, 1, QtWidgets.QTableWidgetItem(str(history_list[i]['license_plate'])))
+                    start_date_str = str(history_list[i]["entry_time"])
+                    start_date_obj = datetime.strptime(start_date_str, "%a, %d %b %Y %H:%M:%S GMT")
+                    formatted_start_date = start_date_obj.strftime("%d.%m.%Y %H:%M")
+
+                    self.HistoryTable.setItem(i, 2, QtWidgets.QTableWidgetItem(formatted_start_date))
+
+                    end_date_str = str(history_list[i]["exit_time"])
+                    end_date_obj = datetime.strptime(end_date_str, "%a, %d %b %Y %H:%M:%S GMT")
+                    formatted_end_date = end_date_obj.strftime("%d.%m.%Y %H:%M")
+
+                    self.HistoryTable.setItem(i, 3, QtWidgets.QTableWidgetItem(formatted_end_date))
+
+                    duration= end_date_obj - start_date_obj
+                    total_seconds = abs(duration.total_seconds())
+                    hours = int(total_seconds // 3600)
+                    minutes = int((total_seconds % 3600) // 60)
+                    seconds = int(total_seconds % 60)
+
+                    self.HistoryTable.setItem(i, 4, QtWidgets.QTableWidgetItem(f"{hours}:{minutes}:{seconds}"))
+                    self.HistoryTable.setItem(i, 5, QtWidgets.QTableWidgetItem(str(history_list[i]['payment']['amount'])))
+
+                    exit_button = QPushButton("Remove")
+                    exit_button.clicked.connect(lambda _, row=i: self.remove_history(row))
+
+                    self.HistoryTable.setCellWidget(i, 6, exit_button)
+        else:
+            self.ServerNC_lbl.show()
+            self.HistoryTable.hide()
+    
+    def remove_history(self, row):
+        car_id = self.HistoryTable.item(row, 0).text()
+
+        if wtd.remove_history(self.database_address, car_id):
+            self.HistoryTable.removeRow(row)
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Exit")
+            msg_box.setText("Car took off")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+            self.update_history_table()
+        else:
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
+            msg_box.setWindowTitle("Exit")
+            msg_box.setText("Car is stucked at your parking lot")
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg_box.exec_()
+
+
+
+    def display_history_page(self):
         self.on_switch()
-        self.content.setCurrentWidget(self.analitics_page)
+        self.content.setCurrentWidget(self.history_page)
+        self.update_history_table()
 
 
 ############################ GPIO PAGE ############################
@@ -589,6 +677,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         module_settings = {
             "mode": management_settings["entrance_mode"],
             "payment_mode": management_settings["payment_mode"],
+            "fee_per_hour": management_settings["fee_per_hour"],
             "recognition_confidence": recognition_settings["recognition_confidence"],
             "detection_interval": recognition_settings["detection_interval"],
             "recognition_model": recognition_settings["recognition_model"],
@@ -654,8 +743,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.update_widgets()
             self.update_table()
 
-        if self.content.currentWidget() == self.analitics_page:
-            pass
+        if self.content.currentWidget() == self.history_page:
+            self.update_history_table()
         if self.content.currentWidget() == self.gpio_page:
             pass
         if self.content.currentWidget() == self.settings_page:

@@ -58,7 +58,6 @@ class ReceiveVideo(QThread):
                 continue
 
             except socket.error as e:
-                print("Socket error, restarting...")
                 time.sleep(0.01)
 
         self.server_client.close()
